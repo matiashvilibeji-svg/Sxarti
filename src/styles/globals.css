@@ -1,0 +1,122 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+Georgian:wght@300;400;500;600;700&display=swap");
+
+@layer base {
+  :root {
+    /* Stitch Design Tokens — Light Mode */
+    --background: 233 100% 97%;
+    --foreground: 213 57% 11%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 213 57% 11%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 213 57% 11%;
+
+    /* Primary: #3525cd */
+    --primary: 245 70% 48%;
+    --primary-foreground: 0 0% 100%;
+    /* Primary Container: #4f46e5 */
+    --primary-container: 243 76% 59%;
+
+    /* Secondary: #006c49 */
+    --secondary: 159 100% 21%;
+    --secondary-foreground: 0 0% 100%;
+    /* Secondary Container: #6cf8bb */
+    --secondary-container: 155 91% 70%;
+
+    /* Tertiary: #5c00ca */
+    --tertiary: 267 100% 40%;
+    --tertiary-foreground: 0 0% 100%;
+    /* Tertiary Container: #7531e6 */
+    --tertiary-container: 261 77% 55%;
+
+    /* Error: #ba1a1a */
+    --destructive: 0 76% 41%;
+    --destructive-foreground: 0 0% 100%;
+    /* Error Container: #ffdad6 */
+    --error-container: 4 100% 92%;
+
+    --muted: 220 60% 95%;
+    --muted-foreground: 249 11% 30%;
+
+    --accent: 220 60% 95%;
+    --accent-foreground: 213 57% 11%;
+
+    /* Surface hierarchy */
+    --surface: 233 100% 97%;
+    --surface-container-lowest: 0 0% 100%;
+    --surface-container-low: 218 100% 97%;
+    --surface-container: 217 100% 95%;
+    --surface-container-high: 218 100% 93%;
+    --surface-container-highest: 216 97% 91%;
+
+    /* On-surface: #0b1c30 */
+    --on-surface: 213 57% 11%;
+    /* On-surface-variant: #464555 */
+    --on-surface-variant: 243 11% 30%;
+
+    /* Outline: #777587 */
+    --outline: 243 7% 50%;
+    /* Outline-variant: #c7c4d8 */
+    --outline-variant: 249 18% 81%;
+
+    /* Surface-tint: #4d44e3 */
+    --surface-tint: 244 73% 58%;
+
+    --border: 249 18% 81%;
+    --input: 249 18% 81%;
+    --ring: 245 70% 48%;
+
+    --radius: 0.5rem;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-feature-settings:
+      "rlig" 1,
+      "calt" 1;
+  }
+
+  /* Georgian text line-height boost */
+  [lang="ka"],
+  .font-georgian {
+    line-height: 1.75;
+  }
+
+  /* No pure black text */
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply text-on-surface tracking-display font-bold;
+  }
+}
+
+@layer utilities {
+  /* Ghost border utility */
+  .ghost-border {
+    border: 1px solid hsl(var(--outline-variant) / 0.15);
+  }
+
+  /* Ambient shadow cards */
+  .card-elevated {
+    @apply bg-surface-container-lowest shadow-ambient;
+  }
+
+  /* Input focus glow */
+  .input-focus-glow {
+    box-shadow: 0 0 0 2px hsl(var(--surface-tint) / 0.3);
+  }
+}

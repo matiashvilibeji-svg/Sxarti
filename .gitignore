@@ -1,0 +1,15 @@
+node_modules/
+.env
+.env.local
+.env.*.local
+.DS_Store
+.mcp.json
+
+# Next.js
+.next/
+out/
+.vercel
+
+# Build
+*.tsbuildinfo
+next-env.d.ts
