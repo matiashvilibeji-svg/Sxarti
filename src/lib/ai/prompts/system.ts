@@ -62,7 +62,7 @@ export function buildSystemPrompt({
     const zoneList = activeZones
       .map(
         (z) =>
-          `- ${z.zone_name}: ${formatGEL(z.fee)}${z.estimated_days ? ` (${z.estimated_days})` : ""}`,
+          `- ${z.zone_name} (ID: ${z.id}): ${formatGEL(z.fee)}${z.estimated_days ? ` (${z.estimated_days})` : ""}`,
       )
       .join("\n");
     sections.push(`## მიტანის ზონები\n${zoneList}`);
@@ -127,10 +127,16 @@ export function buildSystemPrompt({
     { "type": "update_stage", "stage": "needs_assessment" },
     { "type": "add_to_cart", "product_id": "...", "quantity": 1 },
     { "type": "decrement_stock", "product_id": "...", "quantity": 1 },
+    { "type": "update_customer_info", "customer_info": { "name": "...", "phone": "...", "address": "...", "city": "..." } },
+    { "type": "set_delivery_zone", "delivery_zone_id": "..." },
     { "type": "create_order" },
     { "type": "request_handoff", "reason": "..." }
   ]
-}`);
+}
+
+მნიშვნელოვანი:
+- info_collection ეტაპზე აუცილებლად გამოიყენე update_customer_info მომხმარებლის სახელის, ტელეფონის, მისამართის და ქალაქის შესანახად. create_order ვერ შესრულდება customer_info-ს გარეშე.
+- delivery_calculation ეტაპზე აუცილებლად გამოიყენე set_delivery_zone მომხმარებლის ქალაქის/მისამართის მიხედვით შესაბამისი ზონის ID-ით. create_order გამოიყენებს ზონის საფასურს.`);
 
   return sections.join("\n\n");
 }

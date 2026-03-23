@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { useSupabase } from "@/hooks/use-supabase";
+import { useToast } from "@/components/ui/use-toast";
 import { SendHorizonal } from "lucide-react";
 import { useCallback, useRef, useState } from "react";
 
@@ -11,11 +11,11 @@ interface ChatInputProps {
   tenantId: string;
 }
 
-export function ChatInput({ conversationId, tenantId }: ChatInputProps) {
-  const supabase = useSupabase();
+export function ChatInput({ conversationId }: ChatInputProps) {
   const [content, setContent] = useState("");
   const [sending, setSending] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const { toast } = useToast();
 
   const handleSend = useCallback(async () => {
     const trimmed = content.trim();
@@ -23,14 +23,30 @@ export function ChatInput({ conversationId, tenantId }: ChatInputProps) {
 
     setSending(true);
     try {
-      const { error } = await supabase.from("messages").insert({
-        conversation_id: conversationId,
-        tenant_id: tenantId,
-        sender: "human",
-        content: trimmed,
+      const response = await fetch("/api/messages/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          conversation_id: conversationId,
+          content: trimmed,
+        }),
       });
 
-      if (error) throw error;
+      const data = await response.json();
+
+      if (!response.ok) {
+        if (response.status === 502) {
+          // Message saved but platform delivery failed
+          toast({
+            title: "შეტყობინება შენახულია",
+            description:
+              "პლატფორმაზე გაგზავნა ვერ მოხერხდა. მომხმარებელი ვერ დაინახავს.",
+            variant: "destructive",
+          });
+        } else {
+          throw new Error(data.error || "Failed to send");
+        }
+      }
 
       setContent("");
       if (textareaRef.current) {
@@ -38,10 +54,15 @@ export function ChatInput({ conversationId, tenantId }: ChatInputProps) {
       }
     } catch (err) {
       console.error("Failed to send message:", err);
+      toast({
+        title: "შეცდომა",
+        description: "შეტყობინების გაგზავნა ვერ მოხერხდა",
+        variant: "destructive",
+      });
     } finally {
       setSending(false);
     }
-  }, [content, sending, supabase, conversationId, tenantId]);
+  }, [content, sending, conversationId, toast]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {

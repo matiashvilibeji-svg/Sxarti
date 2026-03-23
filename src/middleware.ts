@@ -3,14 +3,15 @@ import { type NextRequest, NextResponse } from "next/server";
 import { updateSession } from "@/lib/supabase/middleware";
 
 export async function middleware(request: NextRequest) {
-  const { user, supabaseResponse } = await updateSession(request);
+  const { user, supabase, supabaseResponse } = await updateSession(request);
   const { pathname } = request.nextUrl;
 
   // Unauthenticated users trying to access protected routes
-  if (
-    !user &&
-    (pathname.startsWith("/dashboard") || pathname.startsWith("/onboarding"))
-  ) {
+  const isProtectedRoute =
+    pathname.startsWith("/dashboard") ||
+    pathname.startsWith("/step-") ||
+    pathname === "/complete";
+  if (!user && isProtectedRoute) {
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = "/login";
     return NextResponse.redirect(loginUrl);
@@ -24,6 +25,23 @@ export async function middleware(request: NextRequest) {
     const dashboardUrl = request.nextUrl.clone();
     dashboardUrl.pathname = "/dashboard/overview";
     return NextResponse.redirect(dashboardUrl);
+  }
+
+  // Onboarding check: redirect to step-1 if tenant setup is incomplete
+  if (user && pathname.startsWith("/dashboard")) {
+    const { data: tenant, error: tenantError } = await supabase
+      .from("tenants")
+      .select("id, business_name")
+      .eq("owner_id", user.id)
+      .single();
+
+    // Only redirect if we got a valid response confirming no tenant exists
+    // Don't redirect on query errors (e.g. network issues)
+    if (!tenantError && (!tenant || !tenant.business_name)) {
+      const onboardingUrl = request.nextUrl.clone();
+      onboardingUrl.pathname = "/step-1";
+      return NextResponse.redirect(onboardingUrl);
+    }
   }
 
   return supabaseResponse;

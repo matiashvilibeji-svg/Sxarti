@@ -6,7 +6,7 @@ import { isValidTransition, type ConversationStage } from "./prompts/stages";
 import { sendMessageWithRetry } from "@/lib/facebook/messenger";
 import { sendInstagramMessageWithRetry } from "@/lib/instagram/messaging";
 import { isGeorgianScript, latinToGeorgian } from "@/lib/utils/georgian";
-import { formatGEL } from "@/lib/utils/currency";
+import { notifyOwner } from "@/lib/notifications";
 import type {
   Tenant,
   Product,
@@ -100,6 +100,11 @@ export async function processMessage(incoming: IncomingMessage): Promise<void> {
       return;
     }
     conversation = newConv;
+
+    // Increment monthly conversation counter for subscription tracking
+    await supabase.rpc("increment_conversations", {
+      p_tenant_id: typedTenant.id,
+    });
   }
 
   const typedConv = conversation as Conversation;
@@ -205,6 +210,7 @@ export async function processMessage(incoming: IncomingMessage): Promise<void> {
   let updatedCart = [...typedConv.cart];
   let updatedStage = typedConv.current_stage as ConversationStage;
   let conversationUpdate: Record<string, unknown> = {};
+  let selectedDeliveryZone: DeliveryZone | null = null;
 
   for (const action of response.actions) {
     await executeAction(action, {
@@ -212,14 +218,19 @@ export async function processMessage(incoming: IncomingMessage): Promise<void> {
       tenant: typedTenant,
       conversation: typedConv,
       products,
+      deliveryZones,
       updatedCart,
       updatedStage,
+      selectedDeliveryZone,
       conversationUpdate,
       setCart: (cart) => {
         updatedCart = cart;
       },
       setStage: (stage) => {
         updatedStage = stage;
+      },
+      setDeliveryZone: (zone) => {
+        selectedDeliveryZone = zone;
       },
       addUpdate: (update) => {
         conversationUpdate = { ...conversationUpdate, ...update };
@@ -254,11 +265,14 @@ interface ActionContext {
   tenant: Tenant;
   conversation: Conversation;
   products: Product[];
+  deliveryZones: DeliveryZone[];
   updatedCart: CartItem[];
   updatedStage: ConversationStage;
+  selectedDeliveryZone: DeliveryZone | null;
   conversationUpdate: Record<string, unknown>;
   setCart: (cart: CartItem[]) => void;
   setStage: (stage: ConversationStage) => void;
+  setDeliveryZone: (zone: DeliveryZone) => void;
   addUpdate: (update: Record<string, unknown>) => void;
 }
 
@@ -302,6 +316,7 @@ async function executeAction(
 
     case "decrement_stock": {
       if (!action.product_id || !action.quantity) break;
+      const stockProduct = ctx.products.find((p) => p.id === action.product_id);
       // Atomic decrement — only succeeds if stock_quantity >= quantity
       const { error } = await ctx.supabase.rpc("decrement_stock", {
         p_product_id: action.product_id,
@@ -309,6 +324,15 @@ async function executeAction(
       });
       if (error) {
         console.error("Stock decrement failed:", error);
+      } else if (stockProduct) {
+        // Check for low stock after decrement
+        const remaining = stockProduct.stock_quantity - action.quantity;
+        if (remaining <= stockProduct.low_stock_threshold) {
+          notifyOwner(ctx.tenant.id, "low_stock", {
+            product_name: stockProduct.name,
+            remaining,
+          }).catch(() => {});
+        }
       }
       break;
     }
@@ -345,6 +369,9 @@ async function executeAction(
         0,
       );
 
+      const deliveryFee = ctx.selectedDeliveryZone?.fee ?? 0;
+      const total = subtotal + deliveryFee;
+
       // Try generating unique order number (max 3 attempts)
       let orderNumber = "";
       for (let attempt = 0; attempt < 3; attempt++) {
@@ -360,8 +387,9 @@ async function executeAction(
             customer_address: customerInfo.address,
             items: orderItems,
             subtotal,
-            delivery_fee: 0,
-            total: subtotal,
+            delivery_fee: deliveryFee,
+            total,
+            delivery_zone_id: ctx.selectedDeliveryZone?.id ?? null,
             payment_status: "pending",
             delivery_status: "pending",
           });
@@ -379,6 +407,44 @@ async function executeAction(
         status: "completed",
       });
       ctx.setStage("complete");
+
+      // Notify owner about new order
+      notifyOwner(ctx.tenant.id, "new_order", {
+        order_number: orderNumber,
+        customer_name: customerInfo.name,
+        total,
+      }).catch(() => {});
+      break;
+    }
+
+    case "set_delivery_zone": {
+      if (!action.delivery_zone_id) break;
+      const zone = ctx.deliveryZones.find(
+        (z) => z.id === action.delivery_zone_id,
+      );
+      if (zone) {
+        ctx.setDeliveryZone(zone);
+      }
+      break;
+    }
+
+    case "update_customer_info": {
+      if (!action.customer_info) break;
+      const existing = ctx.conversation.customer_info ?? {};
+      const merged = {
+        ...existing,
+        ...Object.fromEntries(
+          Object.entries(action.customer_info).filter(([, v]) => v),
+        ),
+      };
+      // Update both the DB payload and the in-memory conversation
+      // so subsequent actions (e.g. create_order) see the updated info
+      ctx.conversation.customer_info = merged;
+      if (merged.name) {
+        ctx.addUpdate({ customer_info: merged, customer_name: merged.name });
+      } else {
+        ctx.addUpdate({ customer_info: merged });
+      }
       break;
     }
 
@@ -388,6 +454,15 @@ async function executeAction(
         handoff_reason: action.reason ?? "Customer requested human agent",
         handed_off_at: new Date().toISOString(),
       });
+
+      // Notify owner about handoff
+      notifyOwner(ctx.tenant.id, "handoff", {
+        customer_name:
+          ctx.conversation.customer_name ??
+          ctx.conversation.customer_info?.name ??
+          "უცნობი",
+        reason: action.reason ?? "Customer requested human agent",
+      }).catch(() => {});
       break;
     }
   }

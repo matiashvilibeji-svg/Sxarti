@@ -24,7 +24,7 @@ export default async function OverviewPage() {
     .eq("owner_id", user.id)
     .single();
 
-  if (!tenant) redirect("/onboarding");
+  if (!tenant) redirect("/step-1");
 
   const tenantId = tenant.id;
   const today = new Date();

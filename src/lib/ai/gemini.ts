@@ -7,11 +7,20 @@ export interface GeminiAction {
     | "add_to_cart"
     | "decrement_stock"
     | "create_order"
-    | "request_handoff";
+    | "request_handoff"
+    | "update_customer_info"
+    | "set_delivery_zone";
   stage?: string;
   product_id?: string;
   quantity?: number;
   reason?: string;
+  customer_info?: {
+    name?: string;
+    phone?: string;
+    address?: string;
+    city?: string;
+  };
+  delivery_zone_id?: string;
 }
 
 export interface GeminiResponse {
@@ -39,12 +48,25 @@ const responseSchema = {
               "decrement_stock",
               "create_order",
               "request_handoff",
+              "update_customer_info",
+              "set_delivery_zone",
             ],
           },
           stage: { type: SchemaType.STRING, nullable: true },
           product_id: { type: SchemaType.STRING, nullable: true },
           quantity: { type: SchemaType.NUMBER, nullable: true },
           reason: { type: SchemaType.STRING, nullable: true },
+          delivery_zone_id: { type: SchemaType.STRING, nullable: true },
+          customer_info: {
+            type: SchemaType.OBJECT,
+            nullable: true,
+            properties: {
+              name: { type: SchemaType.STRING, nullable: true },
+              phone: { type: SchemaType.STRING, nullable: true },
+              address: { type: SchemaType.STRING, nullable: true },
+              city: { type: SchemaType.STRING, nullable: true },
+            },
+          },
         },
         required: ["type"],
       },
