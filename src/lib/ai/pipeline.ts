@@ -293,7 +293,14 @@ async function executeAction(
     case "add_to_cart": {
       if (!action.product_id || !action.quantity) break;
       const product = ctx.products.find((p) => p.id === action.product_id);
-      if (!product || product.stock_quantity < action.quantity) break;
+      if (!product || product.stock_quantity <= 0) break;
+
+      // Check total quantity including what's already in cart
+      const existingCartItem = ctx.updatedCart.find(
+        (item) => item.product_id === action.product_id,
+      );
+      const totalQuantity = (existingCartItem?.quantity ?? 0) + action.quantity;
+      if (totalQuantity > product.stock_quantity) break;
 
       const existingIndex = ctx.updatedCart.findIndex(
         (item) => item.product_id === action.product_id,
@@ -372,8 +379,76 @@ async function executeAction(
       const deliveryFee = ctx.selectedDeliveryZone?.fee ?? 0;
       const total = subtotal + deliveryFee;
 
+      // Decrement stock for each item before inserting order
+      // Track successfully decremented items for rollback if needed
+      const decrementedItems: { product_id: string; quantity: number }[] = [];
+      let stockFailed = false;
+      let failedItemName = "";
+      let failedItemQuantity = 0;
+
+      for (const orderItem of orderItems) {
+        const { error: stockError } = await ctx.supabase.rpc(
+          "decrement_stock",
+          {
+            p_product_id: orderItem.product_id,
+            p_quantity: orderItem.quantity,
+          },
+        );
+        if (stockError) {
+          console.error(
+            `Stock decrement failed for ${orderItem.name}:`,
+            stockError,
+          );
+          stockFailed = true;
+          failedItemName = orderItem.name;
+          failedItemQuantity = orderItem.quantity;
+          break;
+        }
+        decrementedItems.push({
+          product_id: orderItem.product_id,
+          quantity: orderItem.quantity,
+        });
+      }
+
+      // If any item failed, rollback already decremented stock
+      if (stockFailed) {
+        for (const item of decrementedItems) {
+          const { error: rollbackError } = await ctx.supabase.rpc(
+            "increment_stock",
+            {
+              p_product_id: item.product_id,
+              p_quantity: item.quantity,
+            },
+          );
+          if (rollbackError) {
+            console.error("Stock rollback failed:", rollbackError);
+          }
+        }
+        notifyOwner(ctx.tenant.id, "problematic", {
+          customer_name: customerInfo.name,
+          reason: `მარაგი არ არის საკმარისი: ${failedItemName} (მოთხოვნილი: ${failedItemQuantity})`,
+          conversation_id: ctx.conversation.id,
+        }).catch(() => {});
+        return; // Abort order — stock unavailable
+      }
+
+      // Check for low stock after successful decrements
+      for (const orderItem of orderItems) {
+        const product = ctx.products.find((p) => p.id === orderItem.product_id);
+        if (product) {
+          const remaining = product.stock_quantity - orderItem.quantity;
+          if (remaining <= product.low_stock_threshold) {
+            notifyOwner(ctx.tenant.id, "low_stock", {
+              product_name: product.name,
+              remaining,
+            }).catch(() => {});
+          }
+        }
+      }
+
       // Try generating unique order number (max 3 attempts)
       let orderNumber = "";
+      let orderInserted = false;
       for (let attempt = 0; attempt < 3; attempt++) {
         orderNumber = generateOrderNumber();
         const { error: insertError } = await ctx.supabase
@@ -394,11 +469,35 @@ async function executeAction(
             delivery_status: "pending",
           });
 
-        if (!insertError) break;
-        if (attempt === 2) {
-          console.error("Failed to create order after 3 attempts");
-          return;
+        if (!insertError) {
+          orderInserted = true;
+          break;
         }
+      }
+
+      // If order insert failed, rollback stock decrements
+      if (!orderInserted) {
+        console.error(
+          "Failed to create order after 3 attempts — rolling back stock",
+        );
+        for (const item of decrementedItems) {
+          const { error: rollbackError } = await ctx.supabase.rpc(
+            "increment_stock",
+            {
+              p_product_id: item.product_id,
+              p_quantity: item.quantity,
+            },
+          );
+          if (rollbackError) {
+            console.error("Stock rollback failed:", rollbackError);
+          }
+        }
+        notifyOwner(ctx.tenant.id, "problematic", {
+          customer_name: customerInfo.name,
+          reason: "შეკვეთის შექმნა ვერ მოხერხდა ტექნიკური შეფერხების გამო",
+          conversation_id: ctx.conversation.id,
+        }).catch(() => {});
+        return;
       }
 
       // Mark conversation complete
@@ -462,6 +561,18 @@ async function executeAction(
           ctx.conversation.customer_info?.name ??
           "უცნობი",
         reason: action.reason ?? "Customer requested human agent",
+      }).catch(() => {});
+      break;
+    }
+
+    case "flag_problematic": {
+      notifyOwner(ctx.tenant.id, "problematic", {
+        customer_name:
+          ctx.conversation.customer_name ??
+          ctx.conversation.customer_info?.name ??
+          "უცნობი",
+        reason: action.reason ?? "ბოტმა აღმოაჩინა პრობლემური სიტუაცია",
+        conversation_id: ctx.conversation.id,
       }).catch(() => {});
       break;
     }

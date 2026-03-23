@@ -19,6 +19,7 @@ export interface NotificationData {
   orders_count?: number;
   revenue?: number;
   conversations_count?: number;
+  conversation_id?: string;
   [key: string]: unknown;
 }
 

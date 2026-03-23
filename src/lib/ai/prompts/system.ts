@@ -38,7 +38,9 @@ export function buildSystemPrompt({
 - მხოლოდ კატალოგში არსებული პროდუქტები გაყიდე
 - თუ არ იცი პასუხი ან მომხმარებელს რთული საკითხი აქვს — გადაამისამართე ოპერატორზე
 - ნუ მოიგონებ ფასებს ან პროდუქტის დეტალებს
-- ყოველთვის იყავი თავაზიანი და პროფესიონალური`);
+- ყოველთვის იყავი თავაზიანი და პროფესიონალური
+- არ შესთავაზო პროდუქტი რომლის მარაგიც 0-ია
+- შეკვეთის შექმნისას მარაგის ჩამოწერა ავტომატურად ხდება — ცალკე decrement_stock არ გამოიყენო create_order-თან ერთად`);
 
   // Section 3 — Products
   const activeProducts = products.filter(
@@ -118,7 +120,19 @@ export function buildSystemPrompt({
     sections.push(`## ეტაპის ინსტრუქციები\n${stageDef.instructions}`);
   }
 
-  // Section 9 — Output Format
+  // Section 9 — Problematic Case Detection
+  sections.push(`## პრობლემური შემთხვევების აღმოჩენა
+გამოიყენე flag_problematic მოქმედება როცა:
+- მომხმარებელი გაბრაზებულია, აგრესიულია ან უკმაყოფილოა
+- მომხმარებელი აცხადებს პრეტენზიას წინა შეკვეთაზე (არასწორი პროდუქტი, დაზიანებული, მიუტანელი)
+- მომხმარებელი ითხოვს თანხის დაბრუნებას ან შეკვეთის გაუქმებას
+- მომხმარებელი ახსენებს სამართლებრივ ქმედებას ან საჩივარს
+- ვერ ხვდები რას ითხოვს მომხმარებელი 2+ შეტყობინების შემდეგ
+- მომხმარებელი ეკითხება რაღაცას რაც შენს კომპეტენციას სცდება
+
+flag_problematic-ის გამოყენებისას გააგრძელე მომხმარებელთან თავაზიანი კომუნიკაცია. საჭიროების შემთხვევაში გამოიყენე request_handoff-იც.`);
+
+  // Section 10 — Output Format
   sections.push(`## პასუხის ფორმატი
 უპასუხე JSON ფორმატით:
 {
@@ -126,17 +140,19 @@ export function buildSystemPrompt({
   "actions": [
     { "type": "update_stage", "stage": "needs_assessment" },
     { "type": "add_to_cart", "product_id": "...", "quantity": 1 },
-    { "type": "decrement_stock", "product_id": "...", "quantity": 1 },
     { "type": "update_customer_info", "customer_info": { "name": "...", "phone": "...", "address": "...", "city": "..." } },
     { "type": "set_delivery_zone", "delivery_zone_id": "..." },
     { "type": "create_order" },
-    { "type": "request_handoff", "reason": "..." }
+    { "type": "request_handoff", "reason": "..." },
+    { "type": "flag_problematic", "reason": "მომხმარებელი უკმაყოფილოა წინა შეკვეთით" }
   ]
 }
 
 მნიშვნელოვანი:
 - info_collection ეტაპზე აუცილებლად გამოიყენე update_customer_info მომხმარებლის სახელის, ტელეფონის, მისამართის და ქალაქის შესანახად. create_order ვერ შესრულდება customer_info-ს გარეშე.
-- delivery_calculation ეტაპზე აუცილებლად გამოიყენე set_delivery_zone მომხმარებლის ქალაქის/მისამართის მიხედვით შესაბამისი ზონის ID-ით. create_order გამოიყენებს ზონის საფასურს.`);
+- delivery_calculation ეტაპზე აუცილებლად გამოიყენე set_delivery_zone მომხმარებლის ქალაქის/მისამართის მიხედვით შესაბამისი ზონის ID-ით. create_order გამოიყენებს ზონის საფასურს.
+- create_order ავტომატურად ჩამოწერს მარაგს — ცალკე decrement_stock არ გამოიყენო create_order-თან ერთად.
+- decrement_stock მხოლოდ ისეთ შემთხვევაში გამოიყენე, როცა მარაგის ჩამოწერა create_order-ის გარეშე გჭირდება.`);
 
   return sections.join("\n\n");
 }

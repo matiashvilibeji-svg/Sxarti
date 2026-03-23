@@ -12,6 +12,8 @@ const TEMPLATES: Record<
     `⚠️ <b>მარაგი მცირეა!</b>\n\nპროდუქტი: ${data.product_name}\nდარჩენილი რაოდენობა: ${data.remaining}\n\nგთხოვთ, შეავსოთ მარაგი.`,
   daily_summary: (data) =>
     `📊 <b>დღის შეჯამება</b>\n\nახალი შეკვეთები: ${data.orders_count}\nშემოსავალი: ${data.revenue} ₾\nსაუბრები: ${data.conversations_count}\n\nწარმატებულ სავაჭრო დღეს გისურვებთ!`,
+  problematic: (data) =>
+    `🚨 <b>პრობლემური შემთხვევა!</b>\n\nმომხმარებელი: ${data.customer_name}\nმიზეზი: ${data.reason}\n\nგთხოვთ, შეამოწმოთ საუბარი პანელში.`,
 };
 
 export async function sendTelegramNotification(

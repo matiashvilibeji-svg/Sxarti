@@ -7,7 +7,12 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-type NotificationType = "new_order" | "handoff" | "low_stock" | "daily_summary";
+type NotificationType =
+  | "new_order"
+  | "handoff"
+  | "low_stock"
+  | "daily_summary"
+  | "problematic";
 
 const WA_TEMPLATES: Record<
   NotificationType,
@@ -21,6 +26,8 @@ const WA_TEMPLATES: Record<
     `⚠️ *მარაგი მცირეა!*\n\nპროდუქტი: ${d.product_name}\nდარჩენილი: ${d.remaining}`,
   daily_summary: (d) =>
     `📊 *დღის შეჯამება*\n\nშეკვეთები: ${d.orders_count}\nშემოსავალი: ${d.revenue} ₾\nსაუბრები: ${d.conversations_count}`,
+  problematic: (d) =>
+    `🚨 *პრობლემური შემთხვევა!*\n\nმომხმარებელი: ${d.customer_name}\nმიზეზი: ${d.reason}\n\nგთხოვთ, შეამოწმოთ საუბარი პანელში.`,
 };
 
 const TG_TEMPLATES: Record<
@@ -35,6 +42,8 @@ const TG_TEMPLATES: Record<
     `⚠️ <b>მარაგი მცირეა!</b>\n\nპროდუქტი: ${d.product_name}\nდარჩენილი: ${d.remaining}`,
   daily_summary: (d) =>
     `📊 <b>დღის შეჯამება</b>\n\nშეკვეთები: ${d.orders_count}\nშემოსავალი: ${d.revenue} ₾\nსაუბრები: ${d.conversations_count}`,
+  problematic: (d) =>
+    `🚨 <b>პრობლემური შემთხვევა!</b>\n\nმომხმარებელი: ${d.customer_name}\nმიზეზი: ${d.reason}\n\nგთხოვთ, შეამოწმოთ საუბარი პანელში.`,
 };
 
 serve(async (req) => {

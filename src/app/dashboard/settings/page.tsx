@@ -375,14 +375,16 @@ function NotificationsTab({ tenant }: { tenant: Tenant }) {
   const [telegram, setTelegram] = useState(
     tenant.notification_config?.telegram_chat_id ?? "",
   );
-  const [prefs, setPrefs] = useState<Record<string, boolean>>(
-    tenant.notification_config?.preferences ?? {
+  const [prefs, setPrefs] = useState<Record<string, boolean>>(() => {
+    const defaults: Record<string, boolean> = {
       new_order: true,
       handoff: true,
       low_stock: false,
       daily_summary: false,
-    },
-  );
+      problematic: true,
+    };
+    return { ...defaults, ...tenant.notification_config?.preferences };
+  });
   const [saving, setSaving] = useState(false);
 
   const togglePref = (key: string) => {
@@ -409,6 +411,7 @@ function NotificationsTab({ tenant }: { tenant: Tenant }) {
     handoff: "საუბრის გადაცემა ოპერატორზე",
     low_stock: "მარაგი დაბალია",
     daily_summary: "დღის შეჯამება",
+    problematic: "პრობლემური შემთხვევა",
   };
 
   return (

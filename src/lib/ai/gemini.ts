@@ -9,7 +9,8 @@ export interface GeminiAction {
     | "create_order"
     | "request_handoff"
     | "update_customer_info"
-    | "set_delivery_zone";
+    | "set_delivery_zone"
+    | "flag_problematic";
   stage?: string;
   product_id?: string;
   quantity?: number;
@@ -50,6 +51,7 @@ const responseSchema = {
               "request_handoff",
               "update_customer_info",
               "set_delivery_zone",
+              "flag_problematic",
             ],
           },
           stage: { type: SchemaType.STRING, nullable: true },
