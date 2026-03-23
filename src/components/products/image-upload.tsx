@@ -23,6 +23,7 @@ export function ImageUpload({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const uploadFiles = useCallback(
     async (files: FileList | File[]) => {
@@ -32,20 +33,26 @@ export function ImageUpload({
         return true;
       });
 
-      if (validFiles.length === 0) return;
+      if (validFiles.length === 0) {
+        setError("მხარდაჭერილი ფორმატები: JPG, PNG, WebP (მაქს. 5MB)");
+        return;
+      }
 
       setUploading(true);
+      setError(null);
       const newUrls: string[] = [];
 
       for (const file of validFiles) {
         const ext = file.name.split(".").pop();
         const path = `${tenantId}/${crypto.randomUUID()}.${ext}`;
 
-        const { error } = await supabase.storage
+        const { error: uploadError } = await supabase.storage
           .from("product-images")
           .upload(path, file);
 
-        if (!error) {
+        if (uploadError) {
+          setError(`ატვირთვის შეცდომა: ${uploadError.message}`);
+        } else {
           const {
             data: { publicUrl },
           } = supabase.storage.from("product-images").getPublicUrl(path);
@@ -116,6 +123,8 @@ export function ImageUpload({
           }}
         />
       </div>
+
+      {error && <p className="text-sm text-destructive">{error}</p>}
 
       {images.length > 0 && (
         <div className="flex flex-wrap gap-2">
