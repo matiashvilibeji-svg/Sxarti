@@ -1,5 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { SupportTicket } from "@/types/admin";
+
+export const dynamic = "force-dynamic";
 import type { Tenant } from "@/types/database";
 import { TicketStatsBar } from "@/components/admin/support/ticket-stats-bar";
 import { TicketFilters } from "@/components/admin/support/ticket-filters";
