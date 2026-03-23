@@ -1,0 +1,18 @@
+import { AdminSidebar } from "@/components/admin/admin-sidebar";
+import { AdminNavbar } from "@/components/admin/admin-navbar";
+
+export default function AdminLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="min-h-screen bg-surface-container-low">
+      <AdminSidebar />
+      <AdminNavbar />
+      <main className="min-h-screen pl-64 pt-16">
+        <div className="p-6">{children}</div>
+      </main>
+    </div>
+  );
+}

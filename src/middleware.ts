@@ -9,6 +9,7 @@ export async function middleware(request: NextRequest) {
   // Unauthenticated users trying to access protected routes
   const isProtectedRoute =
     pathname.startsWith("/dashboard") ||
+    pathname.startsWith("/admin") ||
     pathname.startsWith("/step-") ||
     pathname === "/complete";
   if (!user && isProtectedRoute) {
@@ -25,6 +26,21 @@ export async function middleware(request: NextRequest) {
     const dashboardUrl = request.nextUrl.clone();
     dashboardUrl.pathname = "/dashboard/overview";
     return NextResponse.redirect(dashboardUrl);
+  }
+
+  // Admin route protection: check admin_users table
+  if (user && pathname.startsWith("/admin")) {
+    const { data: adminUser } = await supabase
+      .from("admin_users")
+      .select("id, role, is_active")
+      .eq("user_id", user.id)
+      .single();
+
+    if (!adminUser || !adminUser.is_active) {
+      const dashboardUrl = request.nextUrl.clone();
+      dashboardUrl.pathname = "/dashboard/overview";
+      return NextResponse.redirect(dashboardUrl);
+    }
   }
 
   // Onboarding check: redirect to step-1 if tenant setup is incomplete
