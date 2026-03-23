@@ -70,7 +70,7 @@ export function ProductFormModal({
         setDescription(product.description ?? "");
         setStockQuantity(String(product.stock_quantity));
         setLowStockThreshold(String(product.low_stock_threshold));
-        setImages(product.images);
+        setImages(product.images ?? []);
         setVariants(
           product.variants?.map((v) => ({
             name: v.name,

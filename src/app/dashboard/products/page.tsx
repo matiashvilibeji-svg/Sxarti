@@ -40,7 +40,15 @@ export default function ProductsPage() {
       .eq("tenant_id", tenant.id)
       .eq("is_active", true)
       .order("created_at", { ascending: false });
-    setProducts((data as Product[]) ?? []);
+    setProducts(
+      ((data as Product[]) ?? []).map((p) => ({
+        ...p,
+        images: p.images ?? [],
+        stock_quantity: p.stock_quantity ?? 0,
+        low_stock_threshold: p.low_stock_threshold ?? 5,
+        price: p.price ?? 0,
+      })),
+    );
     setLoading(false);
   }, [supabase, tenant]);
 

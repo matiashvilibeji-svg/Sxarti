@@ -23,9 +23,9 @@ export function ProductCard({ product, onEdit, onDelete }: ProductCardProps) {
   return (
     <Card className="group overflow-hidden">
       <div className="relative aspect-square bg-surface-container-low">
-        {product.images.length > 0 ? (
+        {(product.images ?? []).length > 0 ? (
           <img
-            src={product.images[0]}
+            src={(product.images ?? [])[0]}
             alt={product.name}
             className="h-full w-full object-cover"
           />
@@ -62,12 +62,12 @@ export function ProductCard({ product, onEdit, onDelete }: ProductCardProps) {
           {product.name}
         </h3>
         <p className="mt-1 text-lg font-semibold text-on-surface">
-          {formatGEL(product.price)}
+          {formatGEL(product.price ?? 0)}
         </p>
         <div className="mt-2">
           <StockIndicator
-            stock_quantity={product.stock_quantity}
-            low_stock_threshold={product.low_stock_threshold}
+            stock_quantity={product.stock_quantity ?? 0}
+            low_stock_threshold={product.low_stock_threshold ?? 5}
           />
         </div>
       </CardContent>

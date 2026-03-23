@@ -49,9 +49,9 @@ export function ProductGrid({
           className="flex items-center gap-4 rounded-lg bg-surface-container-lowest p-3 ghost-border"
         >
           <div className="h-12 w-12 flex-shrink-0 overflow-hidden rounded-lg bg-surface-container-low">
-            {product.images.length > 0 ? (
+            {(product.images ?? []).length > 0 ? (
               <img
-                src={product.images[0]}
+                src={(product.images ?? [])[0]}
                 alt={product.name}
                 className="h-full w-full object-cover"
               />
@@ -67,11 +67,11 @@ export function ProductGrid({
             </p>
           </div>
           <p className="text-sm font-semibold text-on-surface">
-            {formatGEL(product.price)}
+            {formatGEL(product.price ?? 0)}
           </p>
           <StockIndicator
-            stock_quantity={product.stock_quantity}
-            low_stock_threshold={product.low_stock_threshold}
+            stock_quantity={product.stock_quantity ?? 0}
+            low_stock_threshold={product.low_stock_threshold ?? 5}
           />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
