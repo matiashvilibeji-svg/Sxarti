@@ -3,8 +3,14 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { generateBotResponse, type GeminiAction } from "./gemini";
 import { buildSystemPrompt } from "./prompts/system";
 import { isValidTransition, type ConversationStage } from "./prompts/stages";
-import { sendMessageWithRetry } from "@/lib/facebook/messenger";
-import { sendInstagramMessageWithRetry } from "@/lib/instagram/messaging";
+import {
+  sendMessageWithRetry,
+  sendImageWithRetry,
+} from "@/lib/facebook/messenger";
+import {
+  sendInstagramMessageWithRetry,
+  sendInstagramImageWithRetry,
+} from "@/lib/instagram/messaging";
 import { isGeorgianScript, latinToGeorgian } from "@/lib/utils/georgian";
 import { notifyOwner } from "@/lib/notifications";
 import type {
@@ -211,6 +217,7 @@ export async function processMessage(incoming: IncomingMessage): Promise<void> {
   let updatedStage = typedConv.current_stage as ConversationStage;
   let conversationUpdate: Record<string, unknown> = {};
   let selectedDeliveryZone: DeliveryZone | null = null;
+  const imagesToSend: string[] = [];
 
   for (const action of response.actions) {
     await executeAction(action, {
@@ -223,6 +230,7 @@ export async function processMessage(incoming: IncomingMessage): Promise<void> {
       updatedStage,
       selectedDeliveryZone,
       conversationUpdate,
+      imagesToSend,
       setCart: (cart) => {
         updatedCart = cart;
       },
@@ -248,7 +256,12 @@ export async function processMessage(incoming: IncomingMessage): Promise<void> {
     .update(conversationUpdate)
     .eq("id", typedConv.id);
 
-  // 12. Store bot message
+  // 12. Send product images before text (if any)
+  if (imagesToSend.length > 0) {
+    await sendImagesToCustomer(typedTenant, incoming, imagesToSend);
+  }
+
+  // 13. Store bot message
   await supabase.from("messages").insert({
     conversation_id: typedConv.id,
     tenant_id: typedTenant.id,
@@ -256,7 +269,7 @@ export async function processMessage(incoming: IncomingMessage): Promise<void> {
     content: response.message,
   });
 
-  // 13. Send response
+  // 14. Send text response
   await sendResponseToCustomer(typedTenant, incoming, response.message);
 }
 
@@ -270,6 +283,7 @@ interface ActionContext {
   updatedStage: ConversationStage;
   selectedDeliveryZone: DeliveryZone | null;
   conversationUpdate: Record<string, unknown>;
+  imagesToSend: string[];
   setCart: (cart: CartItem[]) => void;
   setStage: (stage: ConversationStage) => void;
   setDeliveryZone: (zone: DeliveryZone) => void;
@@ -576,6 +590,57 @@ async function executeAction(
       }).catch(() => {});
       break;
     }
+
+    case "send_product_images": {
+      if (!action.product_id) break;
+      const imageProduct = ctx.products.find((p) => p.id === action.product_id);
+      if (
+        !imageProduct ||
+        !imageProduct.images ||
+        imageProduct.images.length === 0
+      )
+        break;
+      // Cap at 4 images per action to avoid spam
+      const maxImages = 4;
+      const productImages = imageProduct.images.slice(0, maxImages);
+      for (const url of productImages) {
+        if (!ctx.imagesToSend.includes(url)) {
+          ctx.imagesToSend.push(url);
+        }
+      }
+      break;
+    }
+  }
+}
+
+async function sendImagesToCustomer(
+  tenant: Tenant,
+  incoming: IncomingMessage,
+  imageUrls: string[],
+): Promise<void> {
+  try {
+    if (incoming.platform === "messenger") {
+      if (!tenant.facebook_access_token) return;
+      for (const url of imageUrls) {
+        await sendImageWithRetry(
+          tenant.facebook_access_token,
+          incoming.platformUserId,
+          url,
+        );
+      }
+    } else {
+      if (!tenant.facebook_access_token || !tenant.instagram_account_id) return;
+      for (const url of imageUrls) {
+        await sendInstagramImageWithRetry(
+          tenant.facebook_access_token,
+          tenant.instagram_account_id,
+          incoming.platformUserId,
+          url,
+        );
+      }
+    }
+  } catch (error) {
+    console.error("Failed to send images:", error);
   }
 }
 

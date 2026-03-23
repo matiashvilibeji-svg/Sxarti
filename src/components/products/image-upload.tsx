@@ -9,15 +9,18 @@ interface ImageUploadProps {
   images: string[];
   onImagesChange: (urls: string[]) => void;
   tenantId: string;
+  maxImages?: number;
 }
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+const MAX_IMAGES_DEFAULT = 10;
 const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
 export function ImageUpload({
   images,
   onImagesChange,
   tenantId,
+  maxImages = MAX_IMAGES_DEFAULT,
 }: ImageUploadProps) {
   const supabase = useSupabase();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -38,11 +41,18 @@ export function ImageUpload({
         return;
       }
 
+      const remainingSlots = maxImages - images.length;
+      if (remainingSlots <= 0) {
+        setError(`მაქსიმუმ ${maxImages} სურათის ატვირთვაა შესაძლებელი`);
+        return;
+      }
+      const filesToUpload = validFiles.slice(0, remainingSlots);
+
       setUploading(true);
       setError(null);
       const newUrls: string[] = [];
 
-      for (const file of validFiles) {
+      for (const file of filesToUpload) {
         const ext = file.name.split(".").pop();
         const path = `${tenantId}/${crypto.randomUUID()}.${ext}`;
 
@@ -65,7 +75,7 @@ export function ImageUpload({
       }
       setUploading(false);
     },
-    [supabase, tenantId, images, onImagesChange],
+    [supabase, tenantId, images, onImagesChange, maxImages],
   );
 
   const handleDrop = useCallback(
@@ -107,7 +117,7 @@ export function ImageUpload({
               ჩააგდეთ სურათები ან დააწკაპუნეთ
             </p>
             <p className="mt-1 text-xs text-on-surface-variant/60">
-              JPG, PNG, WebP — მაქს. 5MB
+              JPG, PNG, WebP — მაქს. 5MB | {images.length}/{maxImages}
             </p>
           </>
         )}
