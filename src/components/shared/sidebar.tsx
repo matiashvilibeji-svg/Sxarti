@@ -14,6 +14,7 @@ import {
   Sparkles,
   Settings,
   Loader2,
+  Megaphone,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -49,6 +50,12 @@ const navItems = [
     label: "ანალიტიკა",
     icon: BarChart3,
     href: "/dashboard/analytics",
+  },
+  {
+    label: "რეკლამების ანალიზი",
+    icon: Megaphone,
+    href: "/dashboard/ads-analytics",
+    badge: "პრემიუმ",
   },
   {
     label: "AI ასისტენტი",
@@ -107,7 +114,12 @@ export function Sidebar() {
               ) : (
                 <item.icon className="h-5 w-5" />
               )}
-              {item.label}
+              <span className="flex-1">{item.label}</span>
+              {"badge" in item && item.badge && (
+                <span className="rounded-full bg-[#7531e6] px-1.5 py-0.5 text-[10px] font-bold text-white">
+                  {item.badge}
+                </span>
+              )}
             </Link>
           );
         })}

@@ -1,6 +1,14 @@
 "use client";
 
-import { memo, useCallback, useEffect, useRef, useState } from "react";
+import {
+  memo,
+  Suspense,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {
@@ -244,9 +252,19 @@ function groupSessions(
 // ─── Main Component ─────────────────────────────────────────────
 
 export default function AiChatPage() {
+  return (
+    <Suspense fallback={null}>
+      <AiChatContent />
+    </Suspense>
+  );
+}
+
+function AiChatContent() {
   const supabase = useSupabase();
   const { tenant, loading: tenantLoading } = useTenant();
   const { toast } = useToast();
+  const searchParams = useSearchParams();
+  const router = useRouter();
 
   // Chat state
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -283,6 +301,7 @@ export default function AiChatPage() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const knowledgeRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const prefillHandled = useRef(false);
 
   // Cleanup streaming on unmount, auto-focus input
   useEffect(() => {
@@ -671,6 +690,18 @@ export default function AiChatPage() {
       webSearchQuota,
     ],
   );
+
+  // ─── Handle ?prefill= from ads recommendations ────────────
+  useEffect(() => {
+    if (prefillHandled.current || !tenant || tenantLoading) return;
+    const prefill = searchParams.get("prefill");
+    if (!prefill) return;
+    prefillHandled.current = true;
+    // Clear the URL param without full navigation
+    router.replace("/dashboard/ai-chat");
+    // Auto-send the prefilled message
+    sendMessage(prefill);
+  }, [searchParams, tenant, tenantLoading, sendMessage, router]);
 
   // ─── Stop generation ────────────────────────────────────────
 

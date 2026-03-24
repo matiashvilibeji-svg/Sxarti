@@ -16,6 +16,21 @@ function esc(s: string | null | undefined): string {
   return s.replace(/[#*_`>[\]]/g, (c) => `\\${c}`);
 }
 
+interface AdsSummary {
+  totalSpend: number;
+  totalImpressions: number;
+  totalClicks: number;
+  totalConversions: number;
+  avgCtr: number;
+  avgCpc: number;
+  topCampaigns: { name: string; spend: number; roas: number }[];
+  recommendations: {
+    priority: string;
+    category: string;
+    description: string;
+  }[];
+}
+
 interface OwnerChatPromptInput {
   tenant: Tenant;
   products: Product[];
@@ -27,6 +42,7 @@ interface OwnerChatPromptInput {
   knowledgeDocuments: KnowledgeDocument[];
   botInstruction: BotInstruction | null;
   behaviorRules: BehaviorRule[];
+  adsSummary?: AdsSummary | null;
 }
 
 export function buildOwnerChatPrompt({
@@ -40,6 +56,7 @@ export function buildOwnerChatPrompt({
   knowledgeDocuments,
   botInstruction,
   behaviorRules,
+  adsSummary,
 }: OwnerChatPromptInput): string {
   const sections: string[] = [];
 
@@ -129,6 +146,32 @@ ${knowledgeEntries.map((e) => `**${esc(e.title)}**\n${esc(e.content)}`).join("\n
   if (readyDocs.length > 0) {
     sections.push(`## ატვირთული დოკუმენტები
 ${readyDocs.map((d) => `**${esc(d.file_name)}**\n${esc(d.extracted_text)}`).join("\n\n")}`);
+  }
+
+  // Ads analytics data (if Premium and connected)
+  if (adsSummary) {
+    const campaignLines = adsSummary.topCampaigns
+      .slice(0, 5)
+      .map(
+        (c) =>
+          `- **${esc(c.name)}** — დახარჯული: ${formatGEL(c.spend)} | ROAS: ${c.roas.toFixed(1)}x`,
+      )
+      .join("\n");
+
+    const recLines = adsSummary.recommendations
+      .slice(0, 5)
+      .map((r) => `- [${r.priority}] ${esc(r.category)}: ${esc(r.description)}`)
+      .join("\n");
+
+    sections.push(`## რეკლამების ანალიტიკა (Meta Ads)
+ჯამური ხარჯი: ${formatGEL(adsSummary.totalSpend)} | შთაბეჭდილებები: ${adsSummary.totalImpressions.toLocaleString()} | დაწკაპუნებები: ${adsSummary.totalClicks.toLocaleString()}
+CTR: ${adsSummary.avgCtr.toFixed(2)}% | CPC: ${formatGEL(adsSummary.avgCpc)} | კონვერსიები: ${adsSummary.totalConversions}
+
+### ტოპ კამპანიები
+${campaignLines || "მონაცემები ჯერ არ არის"}
+
+### AI რეკომენდაციები
+${recLines || "რეკომენდაციები ჯერ არ არის"}`);
   }
 
   // Bot instruction & behavior rules (for context about how the sales bot works)

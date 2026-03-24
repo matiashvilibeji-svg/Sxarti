@@ -220,3 +220,88 @@ export interface AiChatMessage {
   sources: { type: string; label: string; count: number }[];
   created_at: string;
 }
+
+// Ads Analytics types
+
+export interface MetaAdAccount {
+  id: string;
+  tenant_id: string;
+  meta_user_id: string;
+  ad_account_id: string;
+  access_token: string;
+  account_name: string | null;
+  last_synced_at: string | null;
+  created_at: string;
+}
+
+export interface AdCampaign {
+  id: string;
+  tenant_id: string;
+  ad_account_id: string;
+  meta_campaign_id: string;
+  name: string;
+  status: "ACTIVE" | "PAUSED" | "DELETED" | "ARCHIVED";
+  objective: string | null;
+  daily_budget: number | null;
+  lifetime_budget: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AdSet {
+  id: string;
+  tenant_id: string;
+  campaign_id: string;
+  meta_adset_id: string;
+  name: string | null;
+  status: "ACTIVE" | "PAUSED" | "DELETED" | "ARCHIVED";
+  targeting: Record<string, unknown> | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Ad {
+  id: string;
+  tenant_id: string;
+  adset_id: string;
+  meta_ad_id: string;
+  name: string | null;
+  status: "ACTIVE" | "PAUSED" | "DELETED" | "ARCHIVED";
+  creative_thumbnail_url: string | null;
+  creative_type: "IMAGE" | "VIDEO" | "CAROUSEL" | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AdMetrics {
+  id: string;
+  tenant_id: string;
+  campaign_id: string;
+  adset_id: string | null;
+  ad_id: string | null;
+  date: string;
+  impressions: number;
+  clicks: number;
+  spend: number;
+  conversions: number;
+  reach: number;
+  ctr: number;
+  cpc: number;
+  cpm: number;
+  roas: number;
+  age_breakdown: Record<string, number> | null;
+  gender_breakdown: Record<string, number> | null;
+  geo_breakdown: Record<string, number> | null;
+  created_at: string;
+}
+
+export interface AdRecommendation {
+  id: string;
+  tenant_id: string;
+  priority: "high" | "medium" | "low";
+  category: "budget" | "creative" | "audience" | "timing" | "product";
+  title: string;
+  description: string;
+  supporting_data: Record<string, unknown> | null;
+  generated_at: string;
+}

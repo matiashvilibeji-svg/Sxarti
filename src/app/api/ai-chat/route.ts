@@ -154,6 +154,9 @@ export async function POST(request: NextRequest) {
     docsRes,
     instructionRes,
     rulesRes,
+    adMetricsRes,
+    adCampaignsRes,
+    adRecsRes,
   ] = await Promise.all([
     admin
       .from("products")
@@ -205,6 +208,32 @@ export async function POST(request: NextRequest) {
       .select("*")
       .eq("tenant_id", tenant_id)
       .eq("is_enabled", true),
+    // Ads data (last 30 days metrics for Premium tenants)
+    typedTenant.subscription_plan === "premium"
+      ? admin
+          .from("ad_metrics")
+          .select(
+            "spend, impressions, clicks, conversions, ctr, cpc, roas, campaign_id",
+          )
+          .eq("tenant_id", tenant_id)
+          .is("adset_id", null)
+          .is("ad_id", null)
+          .gte(
+            "date",
+            new Date(Date.now() - 30 * 86400000).toISOString().split("T")[0],
+          )
+      : Promise.resolve({ data: null }),
+    typedTenant.subscription_plan === "premium"
+      ? admin.from("ad_campaigns").select("id, name").eq("tenant_id", tenant_id)
+      : Promise.resolve({ data: null }),
+    typedTenant.subscription_plan === "premium"
+      ? admin
+          .from("ad_recommendations")
+          .select("priority, category, description")
+          .eq("tenant_id", tenant_id)
+          .order("generated_at", { ascending: false })
+          .limit(5)
+      : Promise.resolve({ data: null }),
   ]);
 
   // Track sources
@@ -258,6 +287,83 @@ export async function POST(request: NextRequest) {
     });
   }
 
+  // ─── Build ads summary for prompt ──────────────────────────
+  let adsSummary = null;
+  if (adMetricsRes.data?.length && adCampaignsRes.data?.length) {
+    const metricsData = adMetricsRes.data as Array<{
+      spend: number;
+      impressions: number;
+      clicks: number;
+      conversions: number;
+      ctr: number;
+      cpc: number;
+      roas: number;
+      campaign_id: string;
+    }>;
+    const campaignNames = new Map(
+      (adCampaignsRes.data as Array<{ id: string; name: string }>).map((c) => [
+        c.id,
+        c.name,
+      ]),
+    );
+
+    const totalSpend = metricsData.reduce((s, m) => s + (m.spend || 0), 0);
+    const totalImpressions = metricsData.reduce(
+      (s, m) => s + (m.impressions || 0),
+      0,
+    );
+    const totalClicks = metricsData.reduce((s, m) => s + (m.clicks || 0), 0);
+    const totalConversions = metricsData.reduce(
+      (s, m) => s + (m.conversions || 0),
+      0,
+    );
+
+    // Aggregate per campaign
+    const byCampaign: Record<
+      string,
+      { spend: number; roas: number; count: number }
+    > = {};
+    for (const m of metricsData) {
+      if (!m.campaign_id) continue;
+      if (!byCampaign[m.campaign_id]) {
+        byCampaign[m.campaign_id] = { spend: 0, roas: 0, count: 0 };
+      }
+      byCampaign[m.campaign_id].spend += m.spend || 0;
+      byCampaign[m.campaign_id].roas += m.roas || 0;
+      byCampaign[m.campaign_id].count += 1;
+    }
+
+    const topCampaigns = Object.entries(byCampaign)
+      .map(([id, data]) => ({
+        name: campaignNames.get(id) || "Unknown",
+        spend: data.spend,
+        roas: data.count > 0 ? data.roas / data.count : 0,
+      }))
+      .sort((a, b) => b.spend - a.spend)
+      .slice(0, 5);
+
+    adsSummary = {
+      totalSpend,
+      totalImpressions,
+      totalClicks,
+      totalConversions,
+      avgCtr: totalImpressions > 0 ? (totalClicks / totalImpressions) * 100 : 0,
+      avgCpc: totalClicks > 0 ? totalSpend / totalClicks : 0,
+      topCampaigns,
+      recommendations: (adRecsRes.data || []) as Array<{
+        priority: string;
+        category: string;
+        description: string;
+      }>,
+    };
+
+    sourcesUsed.push({
+      type: "ads",
+      label: "რეკლამები",
+      count: metricsData.length,
+    });
+  }
+
   // ─── Web search quota check ───────────────────────────────
   let useWebSearch = false;
   let webSearchQuotaWarning: string | null = null;
@@ -295,6 +401,7 @@ export async function POST(request: NextRequest) {
     knowledgeDocuments: (docsRes.data as KnowledgeDocument[]) || [],
     botInstruction: instructionRes.data as BotInstruction | null,
     behaviorRules: (rulesRes.data as BehaviorRule[]) || [],
+    adsSummary,
   });
 
   // Build conversation history for Gemini (queried before insert, so no need to exclude)
