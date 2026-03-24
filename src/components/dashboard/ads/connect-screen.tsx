@@ -52,15 +52,16 @@ export function ConnectScreen({ onConnected }: ConnectScreenProps) {
         return;
       }
 
-      // Normalize account ID (add act_ prefix if missing)
+      // Normalize account ID — strip act_ prefix if present, DB stores numeric only
+      // (API functions add act_ prefix when calling Meta)
       let accountId = adAccountId.trim();
-      if (!accountId.startsWith("act_")) {
-        accountId = `act_${accountId}`;
+      if (accountId.startsWith("act_")) {
+        accountId = accountId.slice(4);
       }
 
-      // Fetch account name
+      // Fetch account name (Meta API needs act_ prefix)
       const accountRes = await fetch(
-        `https://graph.facebook.com/v19.0/${accountId}?fields=name&access_token=${accessToken.trim()}`,
+        `https://graph.facebook.com/v19.0/act_${accountId}?fields=name&access_token=${accessToken.trim()}`,
       );
       const accountData = accountRes.ok ? await accountRes.json() : null;
 

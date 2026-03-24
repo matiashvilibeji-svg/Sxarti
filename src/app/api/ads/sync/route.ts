@@ -74,7 +74,8 @@ export async function POST(request: NextRequest) {
   const admin = createAdminClient();
 
   try {
-    const accountId = adAccount.ad_account_id;
+    // Strip act_ prefix if present — API functions add it
+    const accountId = adAccount.ad_account_id.replace(/^act_/, "");
     const token = adAccount.access_token;
 
     // Fetch all data from Meta API
