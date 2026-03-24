@@ -187,35 +187,35 @@ git checkout main
 
 # 1. Auth pages (2 files) — smallest
 git merge feature/split-2-auth
-echo "✓ Merged auth"
+echo "Merged auth"
 
 # 2. Onboarding (6 files)
 git merge feature/split-3-onboarding
-echo "✓ Merged onboarding"
+echo "Merged onboarding"
 
 # 3. Dashboard Overview + Analytics (~12 files)
 git merge feature/split-4-dashboard-charts
-echo "✓ Merged dashboard charts"
+echo "Merged dashboard charts"
 
 # 4. Products + Orders (~8 files)
 git merge feature/split-5-products-orders
-echo "✓ Merged products & orders"
+echo "Merged products & orders"
 
 # 5. Conversations + Settings (~12 files)
 git merge feature/split-6-conversations-settings
-echo "✓ Merged conversations & settings"
+echo "Merged conversations & settings"
 
 # 6. AI Bot + Webhooks (~12 files)
 git merge feature/split-7-ai-bot
-echo "✓ Merged AI bot"
+echo "Merged AI bot"
 
 # 7. Notifications + Marketing (~10 files) — largest
 git merge feature/split-8-notifications-marketing
-echo "✓ Merged notifications & marketing"
+echo "Merged notifications & marketing"
 
 # Final build verification
 npm run build
-echo "🎉 All agents merged successfully!"
+echo "All agents merged successfully!"
 ```
 
 ---
@@ -251,3 +251,285 @@ These tasks are NOT included in the split and should be done after all agents me
 | **Google Sheets service account**                | Requires creating GCP project and service account credentials.                                         |
 | **Vercel deployment**                            | Run after all code is merged and build passes.                                                         |
 | **Production environment variables**             | Set up `.env.local` with real credentials after deployment config.                                     |
+
+---
+
+---
+
+# Split Execution Plan — Admin Panel
+
+Generated from: Stitch Project 921506058610128825 (10 desktop + 8 mobile screens)
+Date: 2026-03-23
+Total agents: 9 (1 sequential + 8 parallel)
+Estimated parallel time: ~25-35 min (Agent 0: ~10 min, then Agents 1-8 in parallel: ~15-25 min)
+
+## Architecture Overview
+
+Building a **platform admin panel** at `/admin/*` for Sxarti operators. Separate from the existing tenant dashboard at `/dashboard/*`.
+
+| Route                  | Page                    | Agent   |
+| ---------------------- | ----------------------- | ------- |
+| `/admin/overview`      | Dashboard Overview      | Agent 1 |
+| `/admin/businesses`    | Business Directory      | Agent 2 |
+| `/admin/billing`       | Subscriptions & Billing | Agent 3 |
+| `/admin/bot-monitor`   | Bot Monitor             | Agent 4 |
+| `/admin/cms`           | Website CMS             | Agent 5 |
+| `/admin/feature-flags` | Feature Flags           | Agent 6 |
+| `/admin/support`       | Support Tickets         | Agent 7 |
+| `/admin/system-health` | System Health           | Agent 8 |
+| `/admin/settings`      | Settings                | Agent 8 |
+
+## Conflict Matrix
+
+| Agent                   | Branch                           | Files Touched                                                                                                                                                                                                                                                                                   | Safe to Run With          |
+| ----------------------- | -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------- |
+| **0 (Foundation)**      | `admin/split-10-foundation`      | `supabase/migrations/20260323000011_*`, `src/types/admin.ts`, `src/middleware.ts`, `src/app/admin/layout.tsx`, `src/app/admin/page.tsx`, `src/components/admin/admin-sidebar.tsx`, `src/components/admin/admin-navbar.tsx`, `src/components/admin/admin-stat-card.tsx`, `src/lib/admin/auth.ts` | **NONE — must run first** |
+| **1 (Overview)**        | `admin/split-11-overview`        | `src/app/admin/overview/*`, `src/components/admin/overview/*`                                                                                                                                                                                                                                   | 2, 3, 4, 5, 6, 7, 8       |
+| **2 (Businesses)**      | `admin/split-12-businesses`      | `src/app/admin/businesses/*`, `src/components/admin/businesses/*`                                                                                                                                                                                                                               | 1, 3, 4, 5, 6, 7, 8       |
+| **3 (Billing)**         | `admin/split-13-billing`         | `src/app/admin/billing/*`, `src/components/admin/billing/*`                                                                                                                                                                                                                                     | 1, 2, 4, 5, 6, 7, 8       |
+| **4 (Bot Monitor)**     | `admin/split-14-bot-monitor`     | `src/app/admin/bot-monitor/*`, `src/components/admin/bot-monitor/*`                                                                                                                                                                                                                             | 1, 2, 3, 5, 6, 7, 8       |
+| **5 (CMS)**             | `admin/split-15-cms`             | `src/app/admin/cms/*`, `src/components/admin/cms/*`                                                                                                                                                                                                                                             | 1, 2, 3, 4, 6, 7, 8       |
+| **6 (Feature Flags)**   | `admin/split-16-feature-flags`   | `src/app/admin/feature-flags/*`, `src/components/admin/feature-flags/*`                                                                                                                                                                                                                         | 1, 2, 3, 4, 5, 7, 8       |
+| **7 (Support)**         | `admin/split-17-support`         | `src/app/admin/support/*`, `src/components/admin/support/*`                                                                                                                                                                                                                                     | 1, 2, 3, 4, 5, 6, 8       |
+| **8 (Health+Settings)** | `admin/split-18-health-settings` | `src/app/admin/system-health/*`, `src/app/admin/settings/*`, `src/components/admin/system-health/*`, `src/components/admin/settings/*`                                                                                                                                                          | 1, 2, 3, 4, 5, 6, 7       |
+
+**Zero file conflicts between Agents 1-8.**
+
+## Step 1: Create Branches
+
+```bash
+cd /Users/bezhomatiashvili/Desktop/Sxarti
+
+# Foundation branch (from main)
+git checkout main
+git checkout -b admin/split-10-foundation
+```
+
+## Step 2a: Run Foundation Agent FIRST
+
+**Terminal 1 — MUST complete before Step 2b**
+
+```bash
+cd /Users/bezhomatiashvili/Desktop/Sxarti
+git checkout admin/split-10-foundation
+claude
+```
+
+Inside Claude Code:
+
+```
+Read .claude/prompts/split-10-admin-foundation.md and execute all instructions.
+```
+
+Wait for DONE. Then merge and create page branches:
+
+```bash
+git checkout main
+git merge admin/split-10-foundation --no-edit
+
+# Create all page branches from updated main
+git checkout -b admin/split-11-overview && git checkout main
+git checkout -b admin/split-12-businesses && git checkout main
+git checkout -b admin/split-13-billing && git checkout main
+git checkout -b admin/split-14-bot-monitor && git checkout main
+git checkout -b admin/split-15-cms && git checkout main
+git checkout -b admin/split-16-feature-flags && git checkout main
+git checkout -b admin/split-17-support && git checkout main
+git checkout -b admin/split-18-health-settings && git checkout main
+```
+
+## Step 2b: Run Page Agents IN PARALLEL (8 terminals)
+
+**Terminal 1 — Dashboard Overview**
+
+```bash
+cd /Users/bezhomatiashvili/Desktop/Sxarti
+git checkout admin/split-11-overview
+claude
+```
+
+Prompt: `Read .claude/prompts/split-11-admin-dashboard-overview.md and execute all instructions.`
+
+**Terminal 2 — Business Directory**
+
+```bash
+cd /Users/bezhomatiashvili/Desktop/Sxarti
+git checkout admin/split-12-businesses
+claude
+```
+
+Prompt: `Read .claude/prompts/split-12-admin-business-directory.md and execute all instructions.`
+
+**Terminal 3 — Subscriptions & Billing**
+
+```bash
+cd /Users/bezhomatiashvili/Desktop/Sxarti
+git checkout admin/split-13-billing
+claude
+```
+
+Prompt: `Read .claude/prompts/split-13-admin-subscriptions-billing.md and execute all instructions.`
+
+**Terminal 4 — Bot Monitor**
+
+```bash
+cd /Users/bezhomatiashvili/Desktop/Sxarti
+git checkout admin/split-14-bot-monitor
+claude
+```
+
+Prompt: `Read .claude/prompts/split-14-admin-bot-monitor.md and execute all instructions.`
+
+**Terminal 5 — Website CMS**
+
+```bash
+cd /Users/bezhomatiashvili/Desktop/Sxarti
+git checkout admin/split-15-cms
+claude
+```
+
+Prompt: `Read .claude/prompts/split-15-admin-website-cms.md and execute all instructions.`
+
+**Terminal 6 — Feature Flags**
+
+```bash
+cd /Users/bezhomatiashvili/Desktop/Sxarti
+git checkout admin/split-16-feature-flags
+claude
+```
+
+Prompt: `Read .claude/prompts/split-16-admin-feature-flags.md and execute all instructions.`
+
+**Terminal 7 — Support Tickets**
+
+```bash
+cd /Users/bezhomatiashvili/Desktop/Sxarti
+git checkout admin/split-17-support
+claude
+```
+
+Prompt: `Read .claude/prompts/split-17-admin-support-tickets.md and execute all instructions.`
+
+**Terminal 8 — System Health + Settings**
+
+```bash
+cd /Users/bezhomatiashvili/Desktop/Sxarti
+git checkout admin/split-18-health-settings
+claude
+```
+
+Prompt: `Read .claude/prompts/split-18-admin-system-health-settings.md and execute all instructions.`
+
+## Step 3: Merge After ALL Agents Finish
+
+Merge order: smallest changes first, largest last.
+
+```bash
+cd /Users/bezhomatiashvili/Desktop/Sxarti
+git checkout main
+
+# 1. Feature Flags (smallest — ~6 components)
+git merge admin/split-16-feature-flags --no-edit
+
+# 2. System Health + Settings (~12 components but straightforward)
+git merge admin/split-18-health-settings --no-edit
+
+# 3. Dashboard Overview (~7 components)
+git merge admin/split-11-overview --no-edit
+
+# 4. Bot Monitor (~8 components)
+git merge admin/split-14-bot-monitor --no-edit
+
+# 5. Subscriptions & Billing (~7 components)
+git merge admin/split-13-billing --no-edit
+
+# 6. Business Directory (~6 components + detail page)
+git merge admin/split-12-businesses --no-edit
+
+# 7. Support Tickets (~9 components + detail page)
+git merge admin/split-17-support --no-edit
+
+# 8. Website CMS (largest — ~12 components with block editor)
+git merge admin/split-15-cms --no-edit
+
+# Final build verification
+npm run build
+```
+
+## Step 4: Cleanup
+
+```bash
+git branch -d admin/split-10-foundation
+git branch -d admin/split-11-overview
+git branch -d admin/split-12-businesses
+git branch -d admin/split-13-billing
+git branch -d admin/split-14-bot-monitor
+git branch -d admin/split-15-cms
+git branch -d admin/split-16-feature-flags
+git branch -d admin/split-17-support
+git branch -d admin/split-18-health-settings
+```
+
+## New Files Created (~75 files)
+
+```
+supabase/migrations/20260323000011_create_admin_tables.sql
+src/types/admin.ts
+src/lib/admin/auth.ts
+src/app/admin/layout.tsx
+src/app/admin/page.tsx
+src/components/admin/admin-sidebar.tsx
+src/components/admin/admin-navbar.tsx
+src/components/admin/admin-stat-card.tsx
+src/app/admin/overview/page.tsx
+src/components/admin/overview/*.tsx (6 files)
+src/app/admin/businesses/page.tsx
+src/app/admin/businesses/[id]/page.tsx
+src/components/admin/businesses/*.tsx (4 files)
+src/app/admin/billing/page.tsx
+src/components/admin/billing/*.tsx (6 files)
+src/app/admin/bot-monitor/page.tsx
+src/components/admin/bot-monitor/*.tsx (7 files)
+src/app/admin/cms/page.tsx
+src/app/admin/cms/[slug]/page.tsx
+src/components/admin/cms/*.tsx (4 files)
+src/components/admin/cms/blocks/*.tsx (6 files)
+src/app/admin/feature-flags/page.tsx
+src/components/admin/feature-flags/*.tsx (5 files)
+src/app/admin/support/page.tsx
+src/app/admin/support/[id]/page.tsx
+src/components/admin/support/*.tsx (7 files)
+src/app/admin/system-health/page.tsx
+src/components/admin/system-health/*.tsx (5 files)
+src/app/admin/settings/page.tsx
+src/components/admin/settings/*.tsx (5 files)
+```
+
+## Existing Files Modified (1 file)
+
+```
+src/middleware.ts — add /admin route protection + admin_users check
+```
+
+## Database Tables Added (7 tables)
+
+| Table                     | Purpose                              |
+| ------------------------- | ------------------------------------ |
+| `admin_users`             | Platform admin accounts with roles   |
+| `support_tickets`         | Support ticket tracking              |
+| `support_ticket_messages` | Ticket conversation threads          |
+| `feature_flags`           | Feature flag definitions + targeting |
+| `cms_pages`               | Website content management           |
+| `system_health_checks`    | Service health snapshots             |
+| `audit_log`               | Admin action audit trail             |
+
+## Deferred Items
+
+| Item                            | Reason                                                                      |
+| ------------------------------- | --------------------------------------------------------------------------- |
+| Stitch design screen downloads  | No `STITCH_API_KEY` configured — set env var and fetch designs to refine UI |
+| Design System page              | Reference/documentation page — build after all components exist             |
+| Email notifications for tickets | Requires email service integration (e.g., Resend, SendGrid)                 |
+| Real-time health checks         | Requires cron job or Supabase Edge Function for periodic checks             |
+| Stripe/payment integration      | Billing page is UI-only; real payment processing needs Stripe setup         |
+| Mobile responsive refinements   | Desktop-first; refine from Stitch mobile designs after API key setup        |

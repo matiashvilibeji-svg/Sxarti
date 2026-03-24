@@ -27,6 +27,7 @@ import {
   CardFooter,
 } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import type { Tenant } from "@/types/database";
 
 const STEPS = [
   { label: "ბიზნეს პროფილი", num: 1 },
@@ -56,7 +57,7 @@ const schema = z.object({
 export default function Step1Page() {
   const router = useRouter();
   const supabase = useSupabase();
-  const { tenant, loading } = useTenant();
+  const { tenant, setTenant, loading, error: tenantError } = useTenant();
   const { toast } = useToast();
 
   const [businessName, setBusinessName] = useState("");
@@ -121,34 +122,79 @@ export default function Step1Page() {
     setSaving(true);
 
     try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) throw new Error("მომხმარებელი ვერ მოიძებნა");
+
       let logoUrl = tenant?.logo_url ?? null;
 
-      if (logoFile && tenant) {
-        const ext = logoFile.name.split(".").pop();
-        const path = `${tenant.id}/logo.${ext}`;
-        const { error: uploadError } = await supabase.storage
-          .from("logos")
-          .upload(path, logoFile, { upsert: true });
+      if (tenant) {
+        // Existing tenant — upload logo then UPDATE
+        if (logoFile) {
+          const ext = logoFile.name.split(".").pop();
+          const path = `${tenant.id}/logo.${ext}`;
+          const { error: uploadError } = await supabase.storage
+            .from("logos")
+            .upload(path, logoFile, { upsert: true });
 
-        if (uploadError) throw uploadError;
+          if (uploadError) throw uploadError;
 
-        const { data: publicData } = supabase.storage
-          .from("logos")
-          .getPublicUrl(path);
-        logoUrl = publicData.publicUrl;
+          const { data: publicData } = supabase.storage
+            .from("logos")
+            .getPublicUrl(path);
+          logoUrl = publicData.publicUrl;
+        }
+
+        const { error: updateError } = await supabase
+          .from("tenants")
+          .update({
+            business_name: businessName,
+            logo_url: logoUrl,
+            bot_persona_name: personaName,
+            bot_tone: tone,
+          })
+          .eq("id", tenant.id);
+
+        if (updateError) throw updateError;
+      } else {
+        // New user — INSERT tenant
+        const { data: newTenant, error: insertError } = await supabase
+          .from("tenants")
+          .insert({
+            owner_id: user.id,
+            business_name: businessName,
+            bot_persona_name: personaName,
+            bot_tone: tone,
+          })
+          .select()
+          .single();
+
+        if (insertError) throw insertError;
+
+        // Upload logo with the new tenant ID
+        if (logoFile && newTenant) {
+          const ext = logoFile.name.split(".").pop();
+          const path = `${newTenant.id}/logo.${ext}`;
+          const { error: uploadError } = await supabase.storage
+            .from("logos")
+            .upload(path, logoFile, { upsert: true });
+
+          if (!uploadError) {
+            const { data: publicData } = supabase.storage
+              .from("logos")
+              .getPublicUrl(path);
+            logoUrl = publicData.publicUrl;
+
+            await supabase
+              .from("tenants")
+              .update({ logo_url: logoUrl })
+              .eq("id", newTenant.id);
+          }
+        }
+
+        setTenant(newTenant as Tenant);
       }
-
-      const { error: updateError } = await supabase
-        .from("tenants")
-        .update({
-          business_name: businessName,
-          logo_url: logoUrl,
-          bot_persona_name: personaName,
-          bot_tone: tone,
-        })
-        .eq("id", tenant!.id);
-
-      if (updateError) throw updateError;
 
       router.push("/step-2");
     } catch (err) {
@@ -171,6 +217,26 @@ export default function Step1Page() {
         <Skeleton className="mx-auto h-8 w-64" />
         <Skeleton className="h-[400px] w-full" />
       </div>
+    );
+  }
+
+  if (tenantError) {
+    return (
+      <Card>
+        <CardContent className="py-10 text-center">
+          <p className="text-destructive">
+            ბიზნეს პროფილის ჩატვირთვა ვერ მოხერხდა.
+          </p>
+          <p className="mt-2 text-sm text-muted-foreground">{tenantError}</p>
+          <Button
+            className="mt-4"
+            variant="outline"
+            onClick={() => window.location.reload()}
+          >
+            თავიდან ცდა
+          </Button>
+        </CardContent>
+      </Card>
     );
   }
 

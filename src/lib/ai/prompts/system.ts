@@ -5,6 +5,10 @@ import type {
   FAQ,
   Conversation,
   CartItem,
+  KnowledgeEntry,
+  KnowledgeDocument,
+  BotInstruction,
+  BehaviorRule,
 } from "@/types/database";
 import { STAGES, type ConversationStage } from "./stages";
 import { formatGEL } from "@/lib/utils/currency";
@@ -15,6 +19,10 @@ interface SystemPromptInput {
   deliveryZones: DeliveryZone[];
   faqs: FAQ[];
   conversation: Conversation;
+  knowledgeEntries?: KnowledgeEntry[];
+  knowledgeDocuments?: KnowledgeDocument[];
+  botInstruction?: BotInstruction | null;
+  behaviorRules?: BehaviorRule[];
 }
 
 export function buildSystemPrompt({
@@ -23,14 +31,49 @@ export function buildSystemPrompt({
   deliveryZones,
   faqs,
   conversation,
+  knowledgeEntries,
+  knowledgeDocuments,
+  botInstruction,
+  behaviorRules,
 }: SystemPromptInput): string {
   const sections: string[] = [];
 
-  // Section 1 — Identity
+  // Section 1 — Identity (with personality settings)
+  const toneLabel =
+    tenant.bot_tone === "formal"
+      ? "ფორმალური"
+      : tenant.bot_tone === "friendly"
+        ? "მეგობრული"
+        : "თავისუფალი";
+
+  const lengthGuide =
+    (tenant.bot_response_length ?? 50) < 33
+      ? "მოკლე და ლაკონური"
+      : (tenant.bot_response_length ?? 50) < 66
+        ? "საშუალო სიგრძის"
+        : "დეტალური და ვრცელი";
+
+  const emojiGuide =
+    (tenant.bot_emoji_usage ?? 50) < 33
+      ? "არ გამოიყენო ემოჯი"
+      : (tenant.bot_emoji_usage ?? 50) < 66
+        ? "ზომიერად გამოიყენე ემოჯი"
+        : "აქტიურად გამოიყენე ემოჯი";
+
+  const salesGuide =
+    (tenant.bot_sales_aggressiveness ?? 30) < 33
+      ? "ნუ იქნები გაყიდვებში აგრესიული — მხოლოდ უპასუხე კითხვებს"
+      : (tenant.bot_sales_aggressiveness ?? 30) < 66
+        ? "ზომიერად შესთავაზე პროდუქტები როცა შესაბამისია"
+        : "აქტიურად შესთავაზე პროდუქტები და გაყიდვისკენ წარმართე საუბარი";
+
   sections.push(`## ვინ ხარ
 შენ ხარ "${tenant.bot_persona_name}" — "${tenant.business_name}"-ის გაყიდვების ასისტენტი.
-ტონი: ${tenant.bot_tone === "formal" ? "ფორმალური" : tenant.bot_tone === "friendly" ? "მეგობრული" : "თავისუფალი"}.
-პასუხობ ქართულად.`);
+ტონი: ${toneLabel}.
+პასუხობ ქართულად.
+პასუხის სტილი: ${lengthGuide}.
+ემოჯი: ${emojiGuide}.
+გაყიდვების მიდგომა: ${salesGuide}.${tenant.bot_greeting_message ? `\nმისალმების ტექსტი: "${tenant.bot_greeting_message}"` : ""}`);
 
   // Section 2 — Rules
   sections.push(`## წესები
@@ -138,6 +181,33 @@ export function buildSystemPrompt({
   const stageDef = STAGES[stage];
   if (stageDef) {
     sections.push(`## ეტაპის ინსტრუქციები\n${stageDef.instructions}`);
+  }
+
+  // Section 8.5 — Custom Knowledge (from AI Assistant config)
+  if (botInstruction?.main_instruction) {
+    sections.push(`## მთავარი ინსტრუქცია\n${botInstruction.main_instruction}`);
+  }
+
+  if (behaviorRules && behaviorRules.length > 0) {
+    const ruleList = behaviorRules.map((r) => `- ${r.rule_text}`).join("\n");
+    sections.push(`## ქცევის წესები (მფლობელის მიერ დაყენებული)\n${ruleList}`);
+  }
+
+  if (knowledgeEntries && knowledgeEntries.length > 0) {
+    const entryList = knowledgeEntries
+      .map((e) => `### ${e.title}\n${e.content}`)
+      .join("\n\n");
+    sections.push(`## სპეციალური ცოდნა\n${entryList}`);
+  }
+
+  if (knowledgeDocuments && knowledgeDocuments.length > 0) {
+    const docTexts = knowledgeDocuments
+      .filter((d) => d.extracted_text)
+      .map((d) => `### ${d.file_name}\n${d.extracted_text}`)
+      .join("\n\n");
+    if (docTexts) {
+      sections.push(`## ატვირთული დოკუმენტებიდან\n${docTexts}`);
+    }
   }
 
   // Section 9 — Problematic Case Detection

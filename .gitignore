@@ -16,3 +16,8 @@ supabase/.temp/
 # Build
 *.tsbuildinfo
 next-env.d.ts
+
+# Tool artifacts
+.playwright-mcp/
+.stitch/
+.stitch-designs/

@@ -61,7 +61,7 @@ const productSchema = z.object({
 export default function Step3Page() {
   const router = useRouter();
   const supabase = useSupabase();
-  const { tenant, loading } = useTenant();
+  const { tenant, loading, error: tenantError } = useTenant();
   const { toast } = useToast();
 
   const [products, setProducts] = useState<Product[]>([]);
@@ -157,11 +157,12 @@ export default function Step3Page() {
   }
 
   async function uploadImages(productId: string): Promise<string[]> {
+    if (!tenant) throw new Error("ბიზნეს პროფილი ვერ მოიძებნა");
     const urls: string[] = [];
     for (let i = 0; i < imageFiles.length; i++) {
       const file = imageFiles[i];
       const ext = file.name.split(".").pop();
-      const path = `${tenant!.id}/${productId}/${Date.now()}_${i}.${ext}`;
+      const path = `${tenant.id}/${productId}/${Date.now()}_${i}.${ext}`;
       const { error } = await supabase.storage
         .from("products")
         .upload(path, file, { upsert: true });
@@ -173,6 +174,15 @@ export default function Step3Page() {
   }
 
   async function handleAddOrUpdate() {
+    if (!tenant) {
+      toast({
+        title: "შეცდომა",
+        description: "ბიზნეს პროფილი ვერ მოიძებნა. გთხოვთ გადატვირთოთ გვერდი.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const parsed = productSchema.safeParse({
       name,
       price: parseFloat(price),
@@ -221,7 +231,7 @@ export default function Step3Page() {
         const { data, error } = await supabase
           .from("products")
           .insert({
-            tenant_id: tenant!.id,
+            tenant_id: tenant.id,
             name,
             price: parseFloat(price),
             description: description || null,
@@ -282,6 +292,28 @@ export default function Step3Page() {
         <Skeleton className="mx-auto h-8 w-64" />
         <Skeleton className="h-[400px] w-full" />
       </div>
+    );
+  }
+
+  if (tenantError || !tenant) {
+    return (
+      <Card>
+        <CardContent className="py-10 text-center">
+          <p className="text-destructive">
+            ბიზნეს პროფილის ჩატვირთვა ვერ მოხერხდა.
+          </p>
+          <p className="mt-2 text-sm text-muted-foreground">
+            {tenantError || "პროფილი ვერ მოიძებნა"}
+          </p>
+          <Button
+            className="mt-4"
+            variant="outline"
+            onClick={() => window.location.reload()}
+          >
+            თავიდან ცდა
+          </Button>
+        </CardContent>
+      </Card>
     );
   }
 

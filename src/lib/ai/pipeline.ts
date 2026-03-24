@@ -24,6 +24,11 @@ import type {
   Conversation,
   CartItem,
   OrderItem,
+  KnowledgeEntry,
+  KnowledgeDocument,
+  BotInstruction,
+  BehaviorRule,
+  KnowledgeSource,
 } from "@/types/database";
 
 export interface IncomingAttachment {
@@ -156,8 +161,18 @@ export async function processMessage(incoming: IncomingMessage): Promise<void> {
     attachments: storedAttachments,
   });
 
-  // 6. Load context (parallel)
-  const [productsRes, zonesRes, faqsRes, messagesRes] = await Promise.all([
+  // 6. Load context (parallel) — includes AI Assistant knowledge config
+  const [
+    productsRes,
+    zonesRes,
+    faqsRes,
+    messagesRes,
+    sourcesRes,
+    entriesRes,
+    docsRes,
+    instructionRes,
+    rulesRes,
+  ] = await Promise.all([
     supabase
       .from("products")
       .select("*")
@@ -175,11 +190,51 @@ export async function processMessage(incoming: IncomingMessage): Promise<void> {
       .eq("conversation_id", typedConv.id)
       .order("created_at", { ascending: true })
       .limit(20),
+    supabase
+      .from("knowledge_sources")
+      .select("*")
+      .eq("tenant_id", typedTenant.id),
+    supabase
+      .from("knowledge_entries")
+      .select("*")
+      .eq("tenant_id", typedTenant.id)
+      .eq("is_active", true),
+    supabase
+      .from("knowledge_documents")
+      .select("*")
+      .eq("tenant_id", typedTenant.id)
+      .eq("status", "ready"),
+    supabase
+      .from("bot_instructions")
+      .select("*")
+      .eq("tenant_id", typedTenant.id)
+      .maybeSingle(),
+    supabase
+      .from("behavior_rules")
+      .select("*")
+      .eq("tenant_id", typedTenant.id)
+      .eq("is_enabled", true),
   ]);
 
-  const products = (productsRes.data ?? []) as Product[];
-  const deliveryZones = (zonesRes.data ?? []) as DeliveryZone[];
-  const faqs = (faqsRes.data ?? []) as FAQ[];
+  const knowledgeSources = (sourcesRes.data ?? []) as KnowledgeSource[];
+  const enabledTypes = new Set(
+    knowledgeSources.filter((s) => s.is_enabled).map((s) => s.source_type),
+  );
+  const noSourcesConfigured = knowledgeSources.length === 0;
+
+  const products = (
+    noSourcesConfigured || enabledTypes.has("products")
+      ? (productsRes.data ?? [])
+      : []
+  ) as Product[];
+  const deliveryZones = (
+    noSourcesConfigured || enabledTypes.has("delivery_zones")
+      ? (zonesRes.data ?? [])
+      : []
+  ) as DeliveryZone[];
+  const faqs = (
+    noSourcesConfigured || enabledTypes.has("faqs") ? (faqsRes.data ?? []) : []
+  ) as FAQ[];
   const messages = (messagesRes.data ?? []) as Message[];
 
   // 7. Build system prompt
@@ -189,6 +244,10 @@ export async function processMessage(incoming: IncomingMessage): Promise<void> {
     deliveryZones,
     faqs,
     conversation: typedConv,
+    knowledgeEntries: (entriesRes.data ?? []) as KnowledgeEntry[],
+    knowledgeDocuments: (docsRes.data ?? []) as KnowledgeDocument[],
+    botInstruction: instructionRes.data as BotInstruction | null,
+    behaviorRules: (rulesRes.data ?? []) as BehaviorRule[],
   });
 
   // 8. Convert history to Gemini Content[]

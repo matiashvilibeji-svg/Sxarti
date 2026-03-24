@@ -41,7 +41,7 @@ serve(async (req) => {
     // Load tenant config for bot persona
     const { data: tenant } = await supabase
       .from("tenants")
-      .select("bot_persona_name, bot_tone, business_name")
+      .select("*")
       .eq("id", tenant_id)
       .single();
 
@@ -59,20 +59,120 @@ serve(async (req) => {
       .eq("tenant_id", tenant_id)
       .eq("is_active", true);
 
+    // Load AI Assistant knowledge config
+    const [
+      knowledgeSourcesRes,
+      knowledgeEntriesRes,
+      knowledgeDocsRes,
+      botInstructionRes,
+      behaviorRulesRes,
+    ] = await Promise.all([
+      supabase.from("knowledge_sources").select("*").eq("tenant_id", tenant_id),
+      supabase
+        .from("knowledge_entries")
+        .select("*")
+        .eq("tenant_id", tenant_id)
+        .eq("is_active", true),
+      supabase
+        .from("knowledge_documents")
+        .select("*")
+        .eq("tenant_id", tenant_id)
+        .eq("status", "ready"),
+      supabase
+        .from("bot_instructions")
+        .select("*")
+        .eq("tenant_id", tenant_id)
+        .maybeSingle(),
+      supabase
+        .from("behavior_rules")
+        .select("*")
+        .eq("tenant_id", tenant_id)
+        .eq("is_enabled", true),
+    ]);
+
     const toneMap = {
       formal: "ფორმალური და პროფესიონალური",
       friendly: "მეგობრული და თბილი",
       casual: "არაფორმალური და მარტივი",
     };
 
+    // Build personality settings
+    const responseLength = tenant?.bot_response_length ?? 50;
+    const lengthGuide =
+      responseLength < 33
+        ? "მოკლე და ლაკონური"
+        : responseLength < 66
+          ? "საშუალო სიგრძის"
+          : "დეტალური და ვრცელი";
+    const emojiUsage = tenant?.bot_emoji_usage ?? 50;
+    const emojiGuide =
+      emojiUsage < 33
+        ? "არ გამოიყენო ემოჯი"
+        : emojiUsage < 66
+          ? "ზომიერად გამოიყენე ემოჯი"
+          : "აქტიურად გამოიყენე ემოჯი";
+    const salesAgg = tenant?.bot_sales_aggressiveness ?? 30;
+    const salesGuide =
+      salesAgg < 33
+        ? "ნუ იქნები აგრესიული გაყიდვებში"
+        : salesAgg < 66
+          ? "ზომიერად შესთავაზე პროდუქტები"
+          : "აქტიურად წარმართე გაყიდვისკენ";
+
+    // Custom knowledge sections
+    const knowledgeEntries = knowledgeEntriesRes.data || [];
+    const knowledgeDocs = knowledgeDocsRes.data || [];
+    const botInstruction = botInstructionRes.data;
+    const behaviorRules = behaviorRulesRes.data || [];
+
+    let customKnowledge = "";
+    if (botInstruction?.main_instruction) {
+      customKnowledge += `\n\nმთავარი ინსტრუქცია:\n${botInstruction.main_instruction}`;
+    }
+    if (behaviorRules.length > 0) {
+      customKnowledge += `\n\nქცევის წესები:\n${behaviorRules.map((r: { rule_text: string }) => `- ${r.rule_text}`).join("\n")}`;
+    }
+    if (knowledgeEntries.length > 0) {
+      customKnowledge += `\n\nსპეციალური ცოდნა:\n${knowledgeEntries.map((e: { title: string; content: string }) => `### ${e.title}\n${e.content}`).join("\n\n")}`;
+    }
+    if (knowledgeDocs.length > 0) {
+      const docTexts = knowledgeDocs
+        .filter((d: { extracted_text: string | null }) => d.extracted_text)
+        .map(
+          (d: { file_name: string; extracted_text: string }) =>
+            `### ${d.file_name}\n${d.extracted_text}`,
+        )
+        .join("\n\n");
+      if (docTexts) customKnowledge += `\n\nდოკუმენტებიდან:\n${docTexts}`;
+    }
+
+    // Determine which sources are enabled
+    const knowledgeSources = knowledgeSourcesRes.data || [];
+    const enabledTypes = new Set(
+      knowledgeSources
+        .filter((s: { is_enabled: boolean }) => s.is_enabled)
+        .map((s: { source_type: string }) => s.source_type),
+    );
+    // If no sources configured yet, default to all enabled
+    const noSourcesConfigured = knowledgeSources.length === 0;
+    const includeProducts = noSourcesConfigured || enabledTypes.has("products");
+    const includeZones =
+      noSourcesConfigured || enabledTypes.has("delivery_zones");
+
+    const filteredProducts = includeProducts ? products || [] : [];
+    const filteredZones = includeZones ? deliveryZones || [] : [];
+
     const systemPrompt = `შენ ხარ "${tenant?.bot_persona_name || "ასისტენტი"}" — AI გაყიდვების ასისტენტი "${tenant?.business_name || ""}" კომპანიისთვის.
 ტონი: ${toneMap[tenant?.bot_tone as keyof typeof toneMap] || toneMap.friendly}
+პასუხის სტილი: ${lengthGuide}
+ემოჯი: ${emojiGuide}
+გაყიდვების მიდგომა: ${salesGuide}${tenant?.bot_greeting_message ? `\nმისალმება: "${tenant.bot_greeting_message}"` : ""}
 
 ხელმისაწვდომი პროდუქცია:
-${(products || []).map((p) => `- ${p.name}: ${p.price} ₾ (მარაგი: ${p.stock_quantity})`).join("\n")}
+${filteredProducts.map((p) => `- ${p.name}: ${p.price} ₾ (მარაგი: ${p.stock_quantity})`).join("\n") || "პროდუქტები გამორთულია"}
 
 მიტანის ზონები და ტარიფები:
-${(deliveryZones || []).map((z) => `- ${z.zone_name}: ${z.fee} ₾ (სავარაუდო ვადა: ${z.estimated_days || "არ არის მითითებული"})`).join("\n")}
+${filteredZones.map((z) => `- ${z.zone_name}: ${z.fee} ₾ (სავარაუდო ვადა: ${z.estimated_days || "არ არის მითითებული"})`).join("\n") || "მიწოდების ინფორმაცია გამორთულია"}
 
 წესები:
 - უპასუხე მხოლოდ ქართულ ენაზე
@@ -80,7 +180,7 @@ ${(deliveryZones || []).map((z) => `- ${z.zone_name}: ${z.fee} ₾ (სავა
 - თუ მომხმარებელი მზად არის შესაკვეთად, შეაგროვე: სახელი, ტელეფონი, მისამართი
 - თუ მომხმარებელი იკითხავს მიტანის ფასს ან ვადას, მიაწოდე ზუსტი ინფორმაცია მიტანის ზონებიდან
 - თუ მომხმარებლის ადგილმდებარეობა არ ემთხვევა არცერთ ზონას, შეატყობინე რომ მიტანა მხოლოდ ჩამოთვლილ ზონებშია ხელმისაწვდომი
-- თუ ვერ პასუხობ კითხვას, თავაზიანად გადამისამართე ოპერატორთან`;
+- თუ ვერ პასუხობ კითხვას, თავაზიანად გადამისამართე ოპერატორთან${customKnowledge}`;
 
     const conversationHistory = (messages || []).map((m) => ({
       role: m.sender === "customer" ? "user" : "model",

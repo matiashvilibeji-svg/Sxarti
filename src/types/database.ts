@@ -24,6 +24,10 @@ export interface Tenant {
   subscription_status: string;
   trial_ends_at: string | null;
   conversations_this_month: number;
+  bot_response_length: number;
+  bot_emoji_usage: number;
+  bot_sales_aggressiveness: number;
+  bot_greeting_message: string;
   created_at: string;
   updated_at: string;
 }
@@ -141,5 +145,60 @@ export interface FAQ {
   tenant_id: string;
   question: string;
   answer: string;
+  created_at: string;
+}
+
+export interface KnowledgeSource {
+  id: string;
+  tenant_id: string;
+  source_type:
+    | "products"
+    | "orders"
+    | "conversations"
+    | "faqs"
+    | "delivery_zones";
+  is_enabled: boolean;
+  synced_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface KnowledgeEntry {
+  id: string;
+  tenant_id: string;
+  title: string;
+  content: string;
+  is_active: boolean;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface KnowledgeDocument {
+  id: string;
+  tenant_id: string;
+  file_name: string;
+  file_path: string;
+  file_size: number;
+  file_type: "pdf" | "docx" | "txt";
+  extracted_text: string | null;
+  status: "processing" | "ready" | "error";
+  created_at: string;
+}
+
+export interface BotInstruction {
+  id: string;
+  tenant_id: string;
+  main_instruction: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BehaviorRule {
+  id: string;
+  tenant_id: string;
+  rule_text: string;
+  is_enabled: boolean;
+  sort_order: number;
   created_at: string;
 }

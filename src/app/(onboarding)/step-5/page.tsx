@@ -41,7 +41,7 @@ const schema = z.object({
 export default function Step5Page() {
   const router = useRouter();
   const supabase = useSupabase();
-  const { tenant, loading } = useTenant();
+  const { tenant, loading, error: tenantError } = useTenant();
   const { toast } = useToast();
 
   const [bank, setBank] = useState<Bank | null>(null);
@@ -65,6 +65,15 @@ export default function Step5Page() {
   }, [tenant]);
 
   async function handleSubmit() {
+    if (!tenant) {
+      toast({
+        title: "შეცდომა",
+        description: "ბიზნეს პროფილი ვერ მოიძებნა. გთხოვთ გადატვირთოთ გვერდი.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const result = schema.safeParse({ bank, iban });
 
     if (!result.success) {
@@ -87,7 +96,7 @@ export default function Step5Page() {
       const { error: updateError } = await supabase
         .from("tenants")
         .update({ payment_details: paymentDetails })
-        .eq("id", tenant!.id);
+        .eq("id", tenant.id);
 
       if (updateError) throw updateError;
 
@@ -110,6 +119,28 @@ export default function Step5Page() {
         <Skeleton className="mx-auto h-8 w-64" />
         <Skeleton className="h-[400px] w-full" />
       </div>
+    );
+  }
+
+  if (tenantError || !tenant) {
+    return (
+      <Card>
+        <CardContent className="py-10 text-center">
+          <p className="text-destructive">
+            ბიზნეს პროფილის ჩატვირთვა ვერ მოხერხდა.
+          </p>
+          <p className="mt-2 text-sm text-muted-foreground">
+            {tenantError || "პროფილი ვერ მოიძებნა"}
+          </p>
+          <Button
+            className="mt-4"
+            variant="outline"
+            onClick={() => window.location.reload()}
+          >
+            თავიდან ცდა
+          </Button>
+        </CardContent>
+      </Card>
     );
   }
 
