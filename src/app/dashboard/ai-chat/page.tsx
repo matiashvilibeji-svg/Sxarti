@@ -42,6 +42,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/components/ui/use-toast";
 import { useSupabase } from "@/hooks/use-supabase";
 import { useTenant } from "@/hooks/use-tenant";
@@ -429,6 +430,50 @@ function AiChatContent() {
 
     loadSourceCounts();
   }, [tenant, supabase]);
+
+  // ─── Toggle knowledge source from dropdown ─────────────────
+
+  const SOURCE_TYPE_MAP: Record<string, string> = {
+    products: "products",
+    orders: "orders",
+    conversations: "conversations",
+    zones: "delivery_zones",
+    faqs: "faqs",
+  };
+
+  async function toggleSourceFromDropdown(
+    sourceType: string,
+    enabled: boolean,
+  ) {
+    if (!tenant) return;
+    const dbSourceType = SOURCE_TYPE_MAP[sourceType];
+    if (!dbSourceType) return;
+
+    // Optimistic update
+    setDataSources((prev) =>
+      prev.map((s) => (s.type === sourceType ? { ...s, enabled } : s)),
+    );
+
+    // Upsert to DB (handles case where row doesn't exist yet)
+    const { error } = await supabase.from("knowledge_sources").upsert(
+      {
+        tenant_id: tenant.id,
+        source_type: dbSourceType,
+        is_enabled: enabled,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "tenant_id,source_type" },
+    );
+
+    if (error) {
+      // Revert on failure
+      setDataSources((prev) =>
+        prev.map((s) =>
+          s.type === sourceType ? { ...s, enabled: !enabled } : s,
+        ),
+      );
+    }
+  }
 
   // ─── Load sessions ──────────────────────────────────────────
 
@@ -935,8 +980,19 @@ function AiChatContent() {
               onClick={() => setShowKnowledgeDropdown(!showKnowledgeDropdown)}
               className="flex items-center gap-1.5 rounded-full border border-outline-variant/30 px-3 py-1.5 text-xs font-medium text-on-surface-variant transition-colors hover:bg-surface-container-low"
             >
-              <span className="h-2 w-2 rounded-full bg-emerald-500" />
-              <span className="hidden sm:inline">ცოდნის ბაზა ჩართულია</span>
+              <span
+                className={cn(
+                  "h-2 w-2 rounded-full",
+                  dataSources.some((s) => !s.enabled)
+                    ? "bg-amber-500"
+                    : "bg-emerald-500",
+                )}
+              />
+              <span className="hidden sm:inline">
+                {dataSources.some((s) => !s.enabled)
+                  ? `ცოდნის ბაზა (${dataSources.filter((s) => s.enabled).length}/${dataSources.length})`
+                  : "ცოდნის ბაზა ჩართულია"}
+              </span>
               <Database className="h-3.5 w-3.5 sm:hidden" />
             </button>
 
@@ -945,28 +1001,37 @@ function AiChatContent() {
                 <p className="mb-2 text-xs font-semibold text-on-surface">
                   აქტიური მონაცემები
                 </p>
-                <div className="space-y-1.5">
-                  {dataSources.map((source) => (
-                    <div
-                      key={source.type}
-                      className={cn(
-                        "flex items-center justify-between rounded-lg px-2 py-1.5 text-sm",
-                        (!source.enabled || source.count === 0) && "opacity-40",
-                      )}
-                    >
-                      <span className="text-on-surface-variant">
-                        {source.label}
-                        {!source.enabled && (
-                          <span className="ml-1 text-[10px] text-red-400">
-                            გამორთ.
-                          </span>
+                <div className="space-y-1">
+                  {dataSources.map((source) => {
+                    const isToggleable = source.type in SOURCE_TYPE_MAP;
+                    return (
+                      <div
+                        key={source.type}
+                        className={cn(
+                          "flex items-center justify-between rounded-lg px-2 py-1.5 text-sm",
+                          !source.enabled && "opacity-50",
                         )}
-                      </span>
-                      <span className="font-medium text-on-surface">
-                        {source.enabled ? source.count : "—"}
-                      </span>
-                    </div>
-                  ))}
+                      >
+                        <div className="flex items-center gap-2">
+                          {isToggleable && (
+                            <Switch
+                              checked={source.enabled}
+                              onCheckedChange={(checked) => {
+                                toggleSourceFromDropdown(source.type, checked);
+                              }}
+                              className="h-4 w-7 data-[state=checked]:bg-primary data-[state=unchecked]:bg-slate-200 [&>span]:h-3 [&>span]:w-3"
+                            />
+                          )}
+                          <span className="text-on-surface-variant">
+                            {source.label}
+                          </span>
+                        </div>
+                        <span className="font-medium text-on-surface">
+                          {source.count}
+                        </span>
+                      </div>
+                    );
+                  })}
                 </div>
                 <a
                   href="/dashboard/ai-assistant"
