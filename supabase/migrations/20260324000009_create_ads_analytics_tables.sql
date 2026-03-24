@@ -98,8 +98,14 @@ CREATE TABLE ad_metrics (
   age_breakdown jsonb,
   gender_breakdown jsonb,
   geo_breakdown jsonb,
-  created_at timestamptz DEFAULT now(),
-  UNIQUE(tenant_id, campaign_id, COALESCE(adset_id, '00000000-0000-0000-0000-000000000000'::uuid), COALESCE(ad_id, '00000000-0000-0000-0000-000000000000'::uuid), date)
+  created_at timestamptz DEFAULT now()
+);
+
+CREATE UNIQUE INDEX idx_ad_metrics_unique ON ad_metrics (
+  tenant_id, campaign_id,
+  COALESCE(adset_id, '00000000-0000-0000-0000-000000000000'::uuid),
+  COALESCE(ad_id, '00000000-0000-0000-0000-000000000000'::uuid),
+  date
 );
 
 ALTER TABLE ad_metrics ENABLE ROW LEVEL SECURITY;
