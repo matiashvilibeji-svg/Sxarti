@@ -655,7 +655,7 @@ function AdsAnalyticsContent() {
   const dashboardContent = (
     <>
       {!adAccount ? (
-        <ConnectScreen />
+        <ConnectScreen onConnected={fetchData} />
       ) : loading ? (
         <div className="space-y-6">
           <Skeleton className="h-20" />
