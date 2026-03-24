@@ -6,9 +6,10 @@ import { GeneralSettings } from "@/components/admin/settings/general-settings";
 import { TeamSettings } from "@/components/admin/settings/team-settings";
 import { NotificationSettings } from "@/components/admin/settings/notification-settings";
 import { SecuritySettings } from "@/components/admin/settings/security-settings";
+import { WebSearchSettings } from "@/components/admin/settings/web-search-settings";
 import { createBrowserClient } from "@supabase/ssr";
 import { AdminUser } from "@/types/admin";
-import { Settings, Users, Bell, Shield } from "lucide-react";
+import { Settings, Users, Bell, Shield, Globe } from "lucide-react";
 
 export default function SettingsPage() {
   const [admins, setAdmins] = useState<AdminUser[]>([]);
@@ -40,7 +41,7 @@ export default function SettingsPage() {
       </div>
 
       <Tabs defaultValue="general" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-flex">
+        <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-flex">
           <TabsTrigger value="general" className="flex items-center gap-2">
             <Settings className="h-4 w-4 hidden sm:block" />
             General
@@ -60,6 +61,10 @@ export default function SettingsPage() {
             <Shield className="h-4 w-4 hidden sm:block" />
             Security
           </TabsTrigger>
+          <TabsTrigger value="web-search" className="flex items-center gap-2">
+            <Globe className="h-4 w-4 hidden sm:block" />
+            Web Search
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="general">
@@ -76,6 +81,10 @@ export default function SettingsPage() {
 
         <TabsContent value="security">
           <SecuritySettings />
+        </TabsContent>
+
+        <TabsContent value="web-search">
+          <WebSearchSettings />
         </TabsContent>
       </Tabs>
     </div>

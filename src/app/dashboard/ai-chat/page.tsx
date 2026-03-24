@@ -13,6 +13,7 @@ import {
   ThumbsUp,
   ThumbsDown,
   ChevronDown,
+  ChevronRight,
   X,
   Search,
   Trash2,
@@ -28,6 +29,7 @@ import {
   ExternalLink,
   Square,
   RotateCcw,
+  Globe,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -36,6 +38,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { useSupabase } from "@/hooks/use-supabase";
 import { useTenant } from "@/hooks/use-tenant";
 import { cn } from "@/lib/utils";
+import { useWebSearchQuota } from "@/hooks/use-web-search-quota";
 import type { AiChatSession } from "@/types/database";
 
 // ─── Suggestion Chips ───────────────────────────────────────────
@@ -157,14 +160,29 @@ const PROSE_CLASSES =
 
 // ─── Types ──────────────────────────────────────────────────────
 
+interface WebSource {
+  type: "web";
+  title: string;
+  url: string;
+}
+
+interface DataSource {
+  type: string;
+  label: string;
+  count: number;
+}
+
+type MessageSource = DataSource | WebSource;
+
 interface ChatMessage {
   id: string;
   role: "user" | "assistant";
   content: string;
-  sources: { type: string; label: string; count: number }[];
+  sources: MessageSource[];
   created_at: string;
   isStreaming?: boolean;
   isError?: boolean;
+  used_web_search?: boolean;
 }
 
 interface SourceCount {
@@ -235,6 +253,13 @@ export default function AiChatPage() {
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [input, setInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
+
+  // Web search state
+  const [webSearchEnabled, setWebSearchEnabled] = useState(false);
+  const [expandedWebSources, setExpandedWebSources] = useState<string | null>(
+    null,
+  );
+  const webSearchQuota = useWebSearchQuota(tenant?.id);
 
   // UI state
   const [showHistory, setShowHistory] = useState(false);
@@ -405,6 +430,7 @@ export default function AiChatPage() {
             content: m.content,
             sources: (m.sources as ChatMessage["sources"]) || [],
             created_at: m.created_at,
+            used_web_search: !!m.used_web_search,
           })),
         );
         setActiveSessionId(sessionId);
@@ -519,6 +545,7 @@ export default function AiChatPage() {
             message: content.trim(),
             session_id: activeSessionId,
             tenant_id: tenant.id,
+            webSearchEnabled,
           }),
           signal: controller.signal,
         });
@@ -546,6 +573,16 @@ export default function AiChatPage() {
             try {
               const data = JSON.parse(line.slice(6));
 
+              // Handle quota warning
+              if (data.type === "quota_warning") {
+                toast({
+                  title: "ვებ ძიება",
+                  description: data.message,
+                  variant: "destructive",
+                });
+                continue;
+              }
+
               if (data.text) {
                 setMessages((prev) =>
                   prev.map((m) =>
@@ -565,10 +602,16 @@ export default function AiChatPage() {
                           isStreaming: false,
                           sources: data.sources || [],
                           isError: !!data.error,
+                          used_web_search: !!data.used_web_search,
                         }
                       : m,
                   ),
                 );
+
+                // Refetch quota after web search usage
+                if (data.used_web_search) {
+                  webSearchQuota.refetch();
+                }
 
                 // Show toast for mid-stream errors
                 if (data.error) {
@@ -618,7 +661,15 @@ export default function AiChatPage() {
         textareaRef.current?.focus();
       }
     },
-    [tenant, isStreaming, activeSessionId, toast, loadSessions],
+    [
+      tenant,
+      isStreaming,
+      activeSessionId,
+      toast,
+      loadSessions,
+      webSearchEnabled,
+      webSearchQuota,
+    ],
   );
 
   // ─── Stop generation ────────────────────────────────────────
@@ -1035,44 +1086,100 @@ export default function AiChatPage() {
                           </>
                         )}
 
-                        {/* Sources Tag */}
-                        {msg.sources && msg.sources.length > 0 && (
-                          <button
-                            onClick={() =>
-                              setShowSources(
-                                showSources === msg.id ? null : msg.id,
-                              )
-                            }
-                            className={cn(
-                              "ml-1 flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors",
-                              showSources === msg.id
-                                ? "bg-primary/10 text-primary"
-                                : "bg-surface-container-high text-on-surface-variant hover:bg-primary/10 hover:text-primary",
-                            )}
-                          >
-                            <Database className="h-3 w-3" />
-                            წყაროები
-                          </button>
+                        {/* Web Search Badge */}
+                        {msg.used_web_search && (
+                          <span className="ml-1 inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-medium text-blue-600 dark:bg-blue-500/10 dark:text-blue-400">
+                            <Globe className="h-2.5 w-2.5" />
+                            ვებ
+                          </span>
                         )}
+
+                        {/* Sources Tag (data sources) */}
+                        {msg.sources &&
+                          msg.sources.filter((s) => s.type !== "web").length >
+                            0 && (
+                            <button
+                              onClick={() =>
+                                setShowSources(
+                                  showSources === msg.id ? null : msg.id,
+                                )
+                              }
+                              className={cn(
+                                "ml-1 flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors",
+                                showSources === msg.id
+                                  ? "bg-primary/10 text-primary"
+                                  : "bg-surface-container-high text-on-surface-variant hover:bg-primary/10 hover:text-primary",
+                              )}
+                            >
+                              <Database className="h-3 w-3" />
+                              წყაროები
+                            </button>
+                          )}
                       </div>
                     )}
 
-                  {/* Expanded Sources */}
+                  {/* Expanded Data Sources */}
                   {showSources === msg.id &&
                     msg.sources &&
-                    msg.sources.length > 0 && (
+                    msg.sources.filter((s) => s.type !== "web").length > 0 && (
                       <div className="mt-2 flex flex-wrap gap-1.5">
-                        {msg.sources.map((source, i) => (
-                          <span
-                            key={i}
-                            className="inline-flex items-center gap-1 rounded-full bg-primary/5 px-2.5 py-1 text-xs font-medium text-primary"
-                          >
-                            {source.label}
-                            <span className="text-primary/60">
-                              ({source.count})
+                        {msg.sources
+                          .filter((s): s is DataSource => s.type !== "web")
+                          .map((source, i) => (
+                            <span
+                              key={i}
+                              className="inline-flex items-center gap-1 rounded-full bg-primary/5 px-2.5 py-1 text-xs font-medium text-primary"
+                            >
+                              {source.label}
+                              <span className="text-primary/60">
+                                ({source.count})
+                              </span>
                             </span>
-                          </span>
-                        ))}
+                          ))}
+                      </div>
+                    )}
+
+                  {/* Collapsible Web Sources */}
+                  {msg.sources &&
+                    msg.sources.filter((s) => s.type === "web").length > 0 && (
+                      <div className="mt-2">
+                        <button
+                          onClick={() =>
+                            setExpandedWebSources(
+                              expandedWebSources === msg.id ? null : msg.id,
+                            )
+                          }
+                          className="flex items-center gap-1 text-xs font-medium text-on-surface-variant/70 transition-colors hover:text-on-surface-variant"
+                        >
+                          {expandedWebSources === msg.id ? (
+                            <ChevronDown className="h-3.5 w-3.5" />
+                          ) : (
+                            <ChevronRight className="h-3.5 w-3.5" />
+                          )}
+                          <Globe className="h-3 w-3" />
+                          წყაროები (
+                          {msg.sources.filter((s) => s.type === "web").length})
+                        </button>
+                        {expandedWebSources === msg.id && (
+                          <div className="mt-1.5 space-y-1 rounded-lg bg-surface-container-low p-2">
+                            {msg.sources
+                              .filter((s): s is WebSource => s.type === "web")
+                              .map((source, i) => (
+                                <a
+                                  key={i}
+                                  href={source.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="flex items-center gap-2 rounded-md px-2 py-1.5 text-xs text-primary transition-colors hover:bg-primary/5"
+                                >
+                                  <ExternalLink className="h-3 w-3 shrink-0" />
+                                  <span className="truncate">
+                                    {source.title}
+                                  </span>
+                                </a>
+                              ))}
+                          </div>
+                        )}
                       </div>
                     )}
                 </div>
@@ -1111,6 +1218,30 @@ export default function AiChatPage() {
               <Paperclip className="h-5 w-5" />
             </button>
 
+            <button
+              onClick={() => setWebSearchEnabled((prev) => !prev)}
+              disabled={webSearchQuota.isDisabled || webSearchQuota.isExhausted}
+              className={cn(
+                "mb-1 shrink-0 rounded-lg p-1.5 transition-colors",
+                webSearchEnabled
+                  ? "bg-primary/10 text-primary"
+                  : "text-on-surface-variant/50 hover:text-on-surface-variant",
+                (webSearchQuota.isDisabled || webSearchQuota.isExhausted) &&
+                  "cursor-not-allowed opacity-40",
+              )}
+              title={
+                webSearchQuota.isDisabled
+                  ? "ვებ ძიება არ არის ხელმისაწვდომი თქვენს გეგმაზე"
+                  : webSearchQuota.isExhausted
+                    ? "თვიური ლიმიტი ამოიწურა"
+                    : webSearchEnabled
+                      ? "ვებ ძიება ჩართულია"
+                      : "ვებ ძიების ჩართვა"
+              }
+            >
+              <Globe className="h-5 w-5" />
+            </button>
+
             <Textarea
               ref={textareaRef}
               value={input}
@@ -1143,10 +1274,26 @@ export default function AiChatPage() {
               </Button>
             )}
           </div>
-          <p className="mt-2 text-center text-[11px] text-on-surface-variant/50">
-            AI ასისტენტს აქვს წვდომა შენს პროდუქტებზე, შეკვეთებზე და ცოდნის
-            ბაზაზე
-          </p>
+          <div className="mt-2 flex items-center justify-center gap-3">
+            <p className="text-[11px] text-on-surface-variant/50">
+              AI ასისტენტს აქვს წვდომა შენს პროდუქტებზე, შეკვეთებზე და ცოდნის
+              ბაზაზე
+            </p>
+            {!webSearchQuota.isLoading &&
+              !webSearchQuota.isDisabled &&
+              !webSearchQuota.isUnlimited && (
+                <span
+                  className={cn(
+                    "text-[11px] font-medium",
+                    webSearchQuota.usage / webSearchQuota.limit >= 0.8
+                      ? "text-destructive"
+                      : "text-on-surface-variant/50",
+                  )}
+                >
+                  {webSearchQuota.usage}/{webSearchQuota.limit} ძებნა
+                </span>
+              )}
+          </div>
         </div>
       </div>
 

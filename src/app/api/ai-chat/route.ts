@@ -31,6 +31,7 @@ export async function POST(request: NextRequest) {
     message: string;
     session_id?: string;
     tenant_id: string;
+    webSearchEnabled?: boolean;
   };
 
   try {
@@ -41,7 +42,7 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  const { message, session_id, tenant_id } = body;
+  const { message, session_id, tenant_id, webSearchEnabled } = body;
 
   if (!message?.trim() || !tenant_id) {
     return new Response(
@@ -257,6 +258,25 @@ export async function POST(request: NextRequest) {
     });
   }
 
+  // ─── Web search quota check ───────────────────────────────
+  let useWebSearch = false;
+  let webSearchQuotaWarning: string | null = null;
+
+  if (webSearchEnabled) {
+    // Use the authenticated supabase client (not admin) because the RPC
+    // is SECURITY DEFINER and checks auth.uid() internally to prevent spoofing
+    const { data: quotaResult } = await supabase.rpc(
+      "increment_web_search_usage",
+      { p_tenant_id: tenant_id },
+    );
+
+    if (quotaResult && quotaResult.allowed) {
+      useWebSearch = true;
+    } else {
+      webSearchQuotaWarning = "ვებ ძიების თვიური ლიმიტი ამოიწურა";
+    }
+  }
+
   // Build system prompt
   const systemPrompt = buildOwnerChatPrompt({
     tenant: typedTenant,
@@ -308,10 +328,20 @@ export async function POST(request: NextRequest) {
   }
 
   const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({
+  const modelConfig: {
+    model: string;
+    systemInstruction: string;
+    tools?: { googleSearchRetrieval: Record<string, never> }[];
+  } = {
     model: "gemini-2.5-flash",
     systemInstruction: systemPrompt,
-  });
+  };
+
+  if (useWebSearch) {
+    modelConfig.tools = [{ googleSearchRetrieval: {} }];
+  }
+
+  const model = genAI.getGenerativeModel(modelConfig);
 
   const contents: Content[] = [
     ...conversationHistory,
@@ -325,6 +355,15 @@ export async function POST(request: NextRequest) {
   const stream = new ReadableStream({
     async start(controller) {
       try {
+        // Send quota warning if web search was requested but denied
+        if (webSearchQuotaWarning) {
+          controller.enqueue(
+            encoder.encode(
+              `data: ${JSON.stringify({ type: "quota_warning", message: webSearchQuotaWarning })}\n\n`,
+            ),
+          );
+        }
+
         const result = await model.generateContentStream({ contents });
 
         for await (const chunk of result.stream) {
@@ -355,10 +394,43 @@ export async function POST(request: NextRequest) {
               role: "assistant",
               content: fullResponse,
               sources: sourcesUsed,
+              used_web_search: useWebSearch,
             });
           }
           return;
         }
+
+        // Extract grounding metadata for web search sources
+        let webSources: { type: string; title: string; url: string }[] = [];
+        if (useWebSearch) {
+          try {
+            const aggregated = await result.response;
+            const groundingMeta = aggregated.candidates?.[0]?.groundingMetadata;
+            // Note: SDK v0.21 uses 'groundingChuncks' (typo in the SDK)
+            const chunks = groundingMeta?.groundingChuncks;
+            if (chunks && chunks.length > 0) {
+              webSources = chunks
+                .filter((chunk) => chunk.web?.uri)
+                .map((chunk) => ({
+                  type: "web" as const,
+                  title: chunk.web?.title || chunk.web?.uri || "Source",
+                  url: chunk.web!.uri!,
+                }));
+              // Deduplicate by URL
+              const seen = new Set<string>();
+              webSources = webSources.filter((s) => {
+                if (seen.has(s.url)) return false;
+                seen.add(s.url);
+                return true;
+              });
+            }
+          } catch {
+            // Grounding metadata extraction failed — continue without sources
+          }
+        }
+
+        // Combine business sources with web sources
+        const allSources = [...sourcesUsed, ...webSources];
 
         // Send final chunk with metadata
         controller.enqueue(
@@ -366,8 +438,9 @@ export async function POST(request: NextRequest) {
             `data: ${JSON.stringify({
               text: "",
               done: true,
-              sources: sourcesUsed,
+              sources: allSources,
               session_id: currentSessionId,
+              used_web_search: useWebSearch,
             })}\n\n`,
           ),
         );
@@ -378,7 +451,8 @@ export async function POST(request: NextRequest) {
           tenant_id,
           role: "assistant",
           content: fullResponse,
-          sources: sourcesUsed,
+          sources: allSources,
+          used_web_search: useWebSearch,
         });
 
         controller.close();
