@@ -11,6 +11,7 @@ import {
   Truck,
   BarChart3,
   Brain,
+  Sparkles,
   Settings,
   Loader2,
 } from "lucide-react";
@@ -53,6 +54,11 @@ const navItems = [
     label: "AI ასისტენტი",
     icon: Brain,
     href: "/dashboard/ai-assistant",
+  },
+  {
+    label: "AI ჩატი",
+    icon: Sparkles,
+    href: "/dashboard/ai-chat",
   },
   {
     label: "პარამეტრები",

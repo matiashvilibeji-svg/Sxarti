@@ -202,3 +202,21 @@ export interface BehaviorRule {
   sort_order: number;
   created_at: string;
 }
+
+export interface AiChatSession {
+  id: string;
+  tenant_id: string;
+  title: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AiChatMessage {
+  id: string;
+  session_id: string;
+  tenant_id: string;
+  role: "user" | "assistant";
+  content: string;
+  sources: { type: string; label: string; count: number }[];
+  created_at: string;
+}
