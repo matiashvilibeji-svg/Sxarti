@@ -8,10 +8,9 @@ interface PremiumGateProps {
   children: React.ReactNode;
 }
 
-export function PremiumGate({ subscriptionPlan, children }: PremiumGateProps) {
-  if (subscriptionPlan === "premium") {
-    return <>{children}</>;
-  }
+export function PremiumGate({ children }: PremiumGateProps) {
+  // Temporarily allow all plans access
+  return <>{children}</>;
 
   return (
     <div className="relative min-h-[80vh]">

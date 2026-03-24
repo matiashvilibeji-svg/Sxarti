@@ -20,7 +20,12 @@ import {
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/shared/logo";
 
-const navItems = [
+const navItems: {
+  label: string;
+  icon: typeof LayoutDashboard;
+  href: string;
+  badge?: string;
+}[] = [
   {
     label: "მიმოხილვა",
     icon: LayoutDashboard,
@@ -55,7 +60,6 @@ const navItems = [
     label: "რეკლამების ანალიზი",
     icon: Megaphone,
     href: "/dashboard/ads-analytics",
-    badge: "პრემიუმ",
   },
   {
     label: "AI ასისტენტი",
