@@ -3,18 +3,43 @@
 import { useState, useEffect, useCallback } from "react";
 import { useTenant } from "@/hooks/use-tenant";
 import { useSupabase } from "@/hooks/use-supabase";
-import {
-  TimePeriodSelector,
-  ConversationsChart,
-  RevenueChart,
-  ConversionFunnel,
-  TopProducts,
-  PeakHoursHeatmap,
-  StatCard,
-} from "@/components/dashboard";
+import dynamic from "next/dynamic";
+import { TimePeriodSelector, StatCard } from "@/components/dashboard";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Users } from "lucide-react";
 import type { OrderItem } from "@/types/database";
+
+const ConversationsChart = dynamic(
+  () =>
+    import("@/components/dashboard/conversations-chart").then(
+      (m) => m.ConversationsChart,
+    ),
+  { ssr: false, loading: () => <Skeleton className="h-80" /> },
+);
+const RevenueChart = dynamic(
+  () =>
+    import("@/components/dashboard/revenue-chart").then((m) => m.RevenueChart),
+  { ssr: false, loading: () => <Skeleton className="h-80" /> },
+);
+const ConversionFunnel = dynamic(
+  () =>
+    import("@/components/dashboard/conversion-funnel").then(
+      (m) => m.ConversionFunnel,
+    ),
+  { ssr: false, loading: () => <Skeleton className="h-64" /> },
+);
+const TopProducts = dynamic(
+  () =>
+    import("@/components/dashboard/top-products").then((m) => m.TopProducts),
+  { ssr: false, loading: () => <Skeleton className="h-64" /> },
+);
+const PeakHoursHeatmap = dynamic(
+  () =>
+    import("@/components/dashboard/peak-hours-heatmap").then(
+      (m) => m.PeakHoursHeatmap,
+    ),
+  { ssr: false, loading: () => <Skeleton className="h-64" /> },
+);
 
 interface DailyBucket {
   date: string;
