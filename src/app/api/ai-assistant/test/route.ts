@@ -10,6 +10,8 @@ import type {
   BotInstruction,
   BehaviorRule,
   KnowledgeSource,
+  AdCampaign,
+  AdMetrics,
 } from "@/types/database";
 
 export async function POST(request: NextRequest) {
@@ -68,6 +70,8 @@ export async function POST(request: NextRequest) {
     docsRes,
     instructionRes,
     rulesRes,
+    adCampaignsRes,
+    adMetricsRes,
   ] = await Promise.all([
     admin
       .from("products")
@@ -101,6 +105,13 @@ export async function POST(request: NextRequest) {
       .select("*")
       .eq("tenant_id", tenant_id)
       .eq("is_enabled", true),
+    admin.from("ad_campaigns").select("*").eq("tenant_id", tenant_id),
+    admin
+      .from("ad_metrics")
+      .select("*")
+      .eq("tenant_id", tenant_id)
+      .order("date", { ascending: false })
+      .limit(50),
   ]);
 
   const knowledgeSources = (sourcesRes.data as KnowledgeSource[]) || [];
@@ -118,6 +129,7 @@ export async function POST(request: NextRequest) {
   const includeZones =
     noSourcesConfigured || enabledSourceTypes.has("delivery_zones");
   const includeFaqs = noSourcesConfigured || enabledSourceTypes.has("faqs");
+  const includeAds = noSourcesConfigured || enabledSourceTypes.has("ads");
 
   const systemPrompt = buildSystemPrompt({
     tenant: typedTenant,
@@ -144,6 +156,12 @@ export async function POST(request: NextRequest) {
     knowledgeDocuments: (docsRes.data as KnowledgeDocument[]) || [],
     botInstruction: instructionRes.data as BotInstruction | null,
     behaviorRules: (rulesRes.data as BehaviorRule[]) || [],
+    adsKnowledge: includeAds
+      ? {
+          campaigns: (adCampaignsRes.data as AdCampaign[]) || [],
+          metrics: (adMetricsRes.data as AdMetrics[]) || [],
+        }
+      : null,
   });
 
   // Track sources
@@ -151,6 +169,7 @@ export async function POST(request: NextRequest) {
     sourcesUsed.push("პროდუქტები");
   if (includeZones && zonesRes.data?.length) sourcesUsed.push("მიწოდება");
   if (includeFaqs && faqsRes.data?.length) sourcesUsed.push("FAQ");
+  if (includeAds && adCampaignsRes.data?.length) sourcesUsed.push("რეკლამები");
   if (entriesRes.data?.length) sourcesUsed.push("სპეციალური ცოდნა");
   if (docsRes.data?.length) sourcesUsed.push("დოკუმენტები");
   if (instructionRes.data) sourcesUsed.push("ინსტრუქციები");

@@ -66,6 +66,8 @@ serve(async (req) => {
       knowledgeDocsRes,
       botInstructionRes,
       behaviorRulesRes,
+      adCampaignsRes,
+      adMetricsRes,
     ] = await Promise.all([
       supabase.from("knowledge_sources").select("*").eq("tenant_id", tenant_id),
       supabase
@@ -88,6 +90,13 @@ serve(async (req) => {
         .select("*")
         .eq("tenant_id", tenant_id)
         .eq("is_enabled", true),
+      supabase.from("ad_campaigns").select("*").eq("tenant_id", tenant_id),
+      supabase
+        .from("ad_metrics")
+        .select("*")
+        .eq("tenant_id", tenant_id)
+        .order("date", { ascending: false })
+        .limit(50),
     ]);
 
     const toneMap = {
@@ -158,6 +167,7 @@ serve(async (req) => {
     const includeProducts = noSourcesConfigured || enabledTypes.has("products");
     const includeZones =
       noSourcesConfigured || enabledTypes.has("delivery_zones");
+    const includeAds = noSourcesConfigured || enabledTypes.has("ads");
 
     const filteredProducts = includeProducts ? products || [] : [];
     const filteredZones = includeZones ? deliveryZones || [] : [];
@@ -180,7 +190,56 @@ ${filteredZones.map((z) => `- ${z.zone_name}: ${z.fee} ₾ (სავარა�
 - თუ მომხმარებელი მზად არის შესაკვეთად, შეაგროვე: სახელი, ტელეფონი, მისამართი
 - თუ მომხმარებელი იკითხავს მიტანის ფასს ან ვადას, მიაწოდე ზუსტი ინფორმაცია მიტანის ზონებიდან
 - თუ მომხმარებლის ადგილმდებარეობა არ ემთხვევა არცერთ ზონას, შეატყობინე რომ მიტანა მხოლოდ ჩამოთვლილ ზონებშია ხელმისაწვდომი
-- თუ ვერ პასუხობ კითხვას, თავაზიანად გადამისამართე ოპერატორთან${customKnowledge}`;
+- თუ ვერ პასუხობ კითხვას, თავაზიანად გადამისამართე ოპერატორთან${customKnowledge}${(() => {
+      if (!includeAds) return "";
+      const campaigns = adCampaignsRes.data || [];
+      if (campaigns.length === 0) return "";
+      const metrics = adMetricsRes.data || [];
+      const activeCampaigns = campaigns.filter(
+        (c: { status: string }) => c.status === "ACTIVE",
+      );
+      const campaignLines = campaigns.map(
+        (c: {
+          id: string;
+          name: string;
+          status: string;
+          objective: string | null;
+          daily_budget: number | null;
+          lifetime_budget: number | null;
+        }) => {
+          const budget = c.daily_budget
+            ? `${c.daily_budget} ₾/დღე`
+            : c.lifetime_budget
+              ? `${c.lifetime_budget} ₾ სულ`
+              : "ბიუჯეტი არ არის";
+          const campMetrics = metrics.filter(
+            (m: { campaign_id: string }) => m.campaign_id === c.id,
+          );
+          let perfLine = "";
+          if (campMetrics.length > 0) {
+            const totalSpend = campMetrics.reduce(
+              (s: number, m: { spend: number }) => s + m.spend,
+              0,
+            );
+            const totalClicks = campMetrics.reduce(
+              (s: number, m: { clicks: number }) => s + m.clicks,
+              0,
+            );
+            const totalImpressions = campMetrics.reduce(
+              (s: number, m: { impressions: number }) => s + m.impressions,
+              0,
+            );
+            const avgCtr =
+              totalImpressions > 0
+                ? ((totalClicks / totalImpressions) * 100).toFixed(2)
+                : "0";
+            perfLine = ` | ხარჯი: ${totalSpend.toFixed(2)} ₾, კლიკები: ${totalClicks}, CTR: ${avgCtr}%`;
+          }
+          return `- ${c.name} (${c.status}) — ${c.objective || "მიზანი არ არის"} | ${budget}${perfLine}`;
+        },
+      );
+      return `\n\nაქტიური რეკლამები:\nაქტიური კამპანიები: ${activeCampaigns.length}/${campaigns.length}\n${campaignLines.join("\n")}\n\nთუ მომხმარებელი რეკლამით მოვიდა, შეგიძლია ახსენო მიმდინარე აქცია ან შეთავაზება.`;
+    })()}`;
 
     const conversationHistory = (messages || []).map((m) => ({
       role: m.sender === "customer" ? "user" : "model",

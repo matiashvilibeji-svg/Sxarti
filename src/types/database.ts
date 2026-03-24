@@ -156,7 +156,8 @@ export interface KnowledgeSource {
     | "orders"
     | "conversations"
     | "faqs"
-    | "delivery_zones";
+    | "delivery_zones"
+    | "ads";
   is_enabled: boolean;
   synced_count: number;
   created_at: string;

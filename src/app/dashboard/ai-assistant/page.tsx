@@ -11,6 +11,7 @@ import {
   MessageCircle,
   HelpCircle,
   Truck,
+  Megaphone,
   Plus,
   Pencil,
   Trash2,
@@ -63,6 +64,11 @@ const SOURCE_META: Record<
     icon: Truck,
     countLabel: "ზონა",
   },
+  ads: {
+    label: "რეკლამები",
+    icon: Megaphone,
+    countLabel: "კამპანია",
+  },
 };
 
 const DEFAULT_SOURCES: {
@@ -74,6 +80,7 @@ const DEFAULT_SOURCES: {
   { source_type: "conversations", is_enabled: false },
   { source_type: "faqs", is_enabled: true },
   { source_type: "delivery_zones", is_enabled: true },
+  { source_type: "ads", is_enabled: true },
 ];
 
 const DEFAULT_RULES = [
@@ -232,7 +239,7 @@ export default function AIAssistantPage() {
       }
 
       // Fetch live counts for knowledge sources
-      const [prodCount, orderCount, convCount, faqCount, zoneCount] =
+      const [prodCount, orderCount, convCount, faqCount, zoneCount, adsCount] =
         await Promise.all([
           supabase
             .from("products")
@@ -256,6 +263,10 @@ export default function AIAssistantPage() {
             .select("id", { count: "exact", head: true })
             .eq("tenant_id", tid)
             .eq("is_active", true),
+          supabase
+            .from("ad_campaigns")
+            .select("id", { count: "exact", head: true })
+            .eq("tenant_id", tid),
         ]);
 
       const countMap: Record<string, number> = {
@@ -264,6 +275,7 @@ export default function AIAssistantPage() {
         conversations: convCount.count ?? 0,
         faqs: faqCount.count ?? 0,
         delivery_zones: zoneCount.count ?? 0,
+        ads: adsCount.count ?? 0,
       };
 
       // Update synced_count on sources with real data

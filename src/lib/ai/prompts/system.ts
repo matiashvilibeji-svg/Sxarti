@@ -9,9 +9,16 @@ import type {
   KnowledgeDocument,
   BotInstruction,
   BehaviorRule,
+  AdCampaign,
+  AdMetrics,
 } from "@/types/database";
 import { STAGES, type ConversationStage } from "./stages";
 import { formatGEL } from "@/lib/utils/currency";
+
+interface AdsKnowledge {
+  campaigns: AdCampaign[];
+  metrics: AdMetrics[];
+}
 
 interface SystemPromptInput {
   tenant: Tenant;
@@ -23,6 +30,7 @@ interface SystemPromptInput {
   knowledgeDocuments?: KnowledgeDocument[];
   botInstruction?: BotInstruction | null;
   behaviorRules?: BehaviorRule[];
+  adsKnowledge?: AdsKnowledge | null;
 }
 
 export function buildSystemPrompt({
@@ -35,6 +43,7 @@ export function buildSystemPrompt({
   knowledgeDocuments,
   botInstruction,
   behaviorRules,
+  adsKnowledge,
 }: SystemPromptInput): string {
   const sections: string[] = [];
 
@@ -151,6 +160,45 @@ export function buildSystemPrompt({
       .map((f) => `**კ:** ${f.question}\n**პ:** ${f.answer}`)
       .join("\n\n");
     sections.push(`## ხშირი კითხვები\n${faqList}`);
+  }
+
+  // Section 6.5 — Ads / Active Campaigns
+  if (adsKnowledge && adsKnowledge.campaigns.length > 0) {
+    const activeCampaigns = adsKnowledge.campaigns.filter(
+      (c) => c.status === "ACTIVE",
+    );
+    const allCampaigns = adsKnowledge.campaigns;
+
+    const campaignLines = allCampaigns.map((c) => {
+      const budget = c.daily_budget
+        ? `${formatGEL(c.daily_budget)}/დღე`
+        : c.lifetime_budget
+          ? `${formatGEL(c.lifetime_budget)} სულ`
+          : "ბიუჯეტი არ არის";
+      // Find latest metrics for this campaign
+      const campMetrics = adsKnowledge.metrics.filter(
+        (m) => m.campaign_id === c.id,
+      );
+      let perfLine = "";
+      if (campMetrics.length > 0) {
+        const totalSpend = campMetrics.reduce((s, m) => s + m.spend, 0);
+        const totalClicks = campMetrics.reduce((s, m) => s + m.clicks, 0);
+        const totalImpressions = campMetrics.reduce(
+          (s, m) => s + m.impressions,
+          0,
+        );
+        const avgCtr =
+          totalImpressions > 0
+            ? ((totalClicks / totalImpressions) * 100).toFixed(2)
+            : "0";
+        perfLine = ` | ხარჯი: ${formatGEL(totalSpend)}, კლიკები: ${totalClicks}, CTR: ${avgCtr}%`;
+      }
+      return `- **${c.name}** (${c.status}) — ${c.objective || "მიზანი არ არის"} | ${budget}${perfLine}`;
+    });
+
+    sections.push(
+      `## აქტიური რეკლამები\nაქტიური კამპანიები: ${activeCampaigns.length}/${allCampaigns.length}\n${campaignLines.join("\n")}\n\nგამოიყენე ეს ინფორმაცია მომხმარებელთან საუბრისას — თუ რეკლამით მოვიდა, შეგიძლია ახსენო მიმდინარე აქცია ან შეთავაზება.`,
+    );
   }
 
   // Section 7 — Current State
