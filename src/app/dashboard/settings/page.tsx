@@ -33,6 +33,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useSupabase } from "@/hooks/use-supabase";
 import { useTenant } from "@/hooks/use-tenant";
 import type { FAQ, Tenant } from "@/types";
+import { useToast } from "@/components/ui/use-toast";
 import {
   Bell,
   Bot,
@@ -49,7 +50,7 @@ import {
 import { useCallback, useEffect, useState } from "react";
 
 export default function SettingsPage() {
-  const { tenant, loading, error } = useTenant();
+  const { tenant, setTenant, loading, error } = useTenant();
 
   if (loading) return <Loading />;
   if (error || !tenant) {
@@ -99,16 +100,16 @@ export default function SettingsPage() {
 
         <div className="mt-6">
           <TabsContent value="profile">
-            <ProfileTab tenant={tenant} />
+            <ProfileTab tenant={tenant} setTenant={setTenant} />
           </TabsContent>
           <TabsContent value="bot">
-            <BotTab tenant={tenant} />
+            <BotTab tenant={tenant} setTenant={setTenant} />
           </TabsContent>
           <TabsContent value="connections">
             <ConnectionsTab tenant={tenant} />
           </TabsContent>
           <TabsContent value="notifications">
-            <NotificationsTab tenant={tenant} />
+            <NotificationsTab tenant={tenant} setTenant={setTenant} />
           </TabsContent>
           <TabsContent value="faq">
             <FAQTab tenant={tenant} />
@@ -124,22 +125,40 @@ export default function SettingsPage() {
 
 // ─── Profile Tab ─────────────────────────────────────────────
 
-function ProfileTab({ tenant }: { tenant: Tenant }) {
+function ProfileTab({
+  tenant,
+  setTenant,
+}: {
+  tenant: Tenant;
+  setTenant: (t: Tenant | null) => void;
+}) {
   const supabase = useSupabase();
+  const { toast } = useToast();
   const [businessName, setBusinessName] = useState(tenant.business_name);
   const [logoUrl, setLogoUrl] = useState(tenant.logo_url ?? "");
   const [saving, setSaving] = useState(false);
 
   const handleSave = async () => {
     setSaving(true);
-    await supabase
+    const updates = {
+      business_name: businessName,
+      logo_url: logoUrl || null,
+    };
+    const { error } = await supabase
       .from("tenants")
-      .update({
-        business_name: businessName,
-        logo_url: logoUrl || null,
-      })
+      .update(updates)
       .eq("id", tenant.id);
     setSaving(false);
+    if (error) {
+      toast({
+        title: "შეცდომა",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      setTenant({ ...tenant, ...updates });
+      toast({ title: "შენახულია", description: "პროფილი წარმატებით განახლდა" });
+    }
   };
 
   return (
@@ -181,8 +200,15 @@ function ProfileTab({ tenant }: { tenant: Tenant }) {
 
 // ─── Bot Tab ─────────────────────────────────────────────────
 
-function BotTab({ tenant }: { tenant: Tenant }) {
+function BotTab({
+  tenant,
+  setTenant,
+}: {
+  tenant: Tenant;
+  setTenant: (t: Tenant | null) => void;
+}) {
   const supabase = useSupabase();
+  const { toast } = useToast();
   const [personaName, setPersonaName] = useState(tenant.bot_persona_name);
   const [tone, setTone] = useState(tenant.bot_tone);
   const [bogIban, setBogIban] = useState(
@@ -198,19 +224,30 @@ function BotTab({ tenant }: { tenant: Tenant }) {
 
   const handleSave = async () => {
     setSaving(true);
-    await supabase
+    const updates = {
+      bot_persona_name: personaName,
+      bot_tone: tone,
+      payment_details: {
+        bog_iban: bogIban || undefined,
+        tbc_account: tbcAccount || undefined,
+        instructions: paymentInstructions || undefined,
+      },
+    };
+    const { error } = await supabase
       .from("tenants")
-      .update({
-        bot_persona_name: personaName,
-        bot_tone: tone,
-        payment_details: {
-          bog_iban: bogIban || undefined,
-          tbc_account: tbcAccount || undefined,
-          instructions: paymentInstructions || undefined,
-        },
-      })
+      .update(updates)
       .eq("id", tenant.id);
     setSaving(false);
+    if (error) {
+      toast({
+        title: "შეცდომა",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      setTenant({ ...tenant, ...updates });
+      toast({ title: "შენახულია", description: "ბოტის პარამეტრები განახლდა" });
+    }
   };
 
   return (
@@ -367,8 +404,15 @@ function ConnectionsTab({ tenant }: { tenant: Tenant }) {
 
 // ─── Notifications Tab ───────────────────────────────────────
 
-function NotificationsTab({ tenant }: { tenant: Tenant }) {
+function NotificationsTab({
+  tenant,
+  setTenant,
+}: {
+  tenant: Tenant;
+  setTenant: (t: Tenant | null) => void;
+}) {
   const supabase = useSupabase();
+  const { toast } = useToast();
   const [whatsapp, setWhatsapp] = useState(
     tenant.notification_config?.whatsapp_number ?? "",
   );
@@ -393,17 +437,31 @@ function NotificationsTab({ tenant }: { tenant: Tenant }) {
 
   const handleSave = async () => {
     setSaving(true);
-    await supabase
+    const updates = {
+      notification_config: {
+        whatsapp_number: whatsapp || undefined,
+        telegram_chat_id: telegram || undefined,
+        preferences: prefs,
+      },
+    };
+    const { error } = await supabase
       .from("tenants")
-      .update({
-        notification_config: {
-          whatsapp_number: whatsapp || undefined,
-          telegram_chat_id: telegram || undefined,
-          preferences: prefs,
-        },
-      })
+      .update(updates)
       .eq("id", tenant.id);
     setSaving(false);
+    if (error) {
+      toast({
+        title: "შეცდომა",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      setTenant({ ...tenant, ...updates });
+      toast({
+        title: "შენახულია",
+        description: "შეტყობინებების პარამეტრები განახლდა",
+      });
+    }
   };
 
   const prefLabels: Record<string, string> = {
