@@ -49,12 +49,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Tenant not found" }, { status: 404 });
   }
 
-  if (tenant.subscription_plan !== "premium") {
-    return NextResponse.json(
-      { error: "Premium subscription required" },
-      { status: 403 },
-    );
-  }
+  // NOTE: premium gate temporarily disabled — all plans can sync
+  // if (tenant.subscription_plan !== "premium") {
+  //   return NextResponse.json(
+  //     { error: "Premium subscription required" },
+  //     { status: 403 },
+  //   );
+  // }
 
   // Get ad account
   const { data: adAccount } = await supabase
