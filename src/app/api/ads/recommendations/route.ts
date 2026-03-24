@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { toGeorgianDateKey } from "@/lib/utils/georgian-time";
 
 export const maxDuration = 60;
 
@@ -129,7 +130,7 @@ export async function POST(request: NextRequest) {
   // Conversation volume by date
   const convByDate: Record<string, number> = {};
   for (const c of conversations) {
-    const date = new Date(c.started_at).toISOString().split("T")[0];
+    const date = toGeorgianDateKey(c.started_at);
     convByDate[date] = (convByDate[date] || 0) + 1;
   }
 

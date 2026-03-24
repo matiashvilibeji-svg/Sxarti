@@ -7,6 +7,10 @@ import { HandoffReasons } from "@/components/admin/bot-monitor/handoff-reasons";
 import { ConversationStages } from "@/components/admin/bot-monitor/conversation-stages";
 import { PlatformBreakdown } from "@/components/admin/bot-monitor/platform-breakdown";
 import { LiveActivityFeed } from "@/components/admin/bot-monitor/live-activity-feed";
+import {
+  georgianTodayStartUTC,
+  toGeorgianDateKey,
+} from "@/lib/utils/georgian-time";
 
 export const dynamic = "force-dynamic";
 
@@ -35,11 +39,7 @@ interface MessageRow {
 export default async function BotMonitorPage() {
   const supabase = createAdminClient();
   const now = new Date();
-  const todayStart = new Date(
-    now.getFullYear(),
-    now.getMonth(),
-    now.getDate(),
-  ).toISOString();
+  const todayStart = georgianTodayStartUTC();
   const thirtyDaysAgo = new Date(
     now.getTime() - 30 * 24 * 60 * 60 * 1000,
   ).toISOString();
@@ -109,11 +109,11 @@ export default async function BotMonitorPage() {
   >();
   for (let i = 29; i >= 0; i--) {
     const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
-    const key = d.toISOString().slice(0, 10);
+    const key = toGeorgianDateKey(d);
     volumeMap.set(key, { messenger: 0, instagram: 0, handoffs: 0, total: 0 });
   }
   for (const c of recentConvos) {
-    const day = c.started_at.slice(0, 10);
+    const day = toGeorgianDateKey(c.started_at);
     const entry = volumeMap.get(day);
     if (entry) {
       entry.total++;

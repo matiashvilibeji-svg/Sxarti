@@ -8,6 +8,7 @@ import { TimePeriodSelector, StatCard } from "@/components/dashboard";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Users } from "lucide-react";
 import type { OrderItem } from "@/types/database";
+import { toGeorgianDateKey } from "@/lib/utils/georgian-time";
 
 const ConversationsChart = dynamic(
   () =>
@@ -154,19 +155,19 @@ export default function AnalyticsPage() {
 
     for (let i = days - 1; i >= 0; i--) {
       const d = new Date(Date.now() - i * 86400000);
-      const key = d.toISOString().split("T")[0];
+      const key = toGeorgianDateKey(d);
       convBuckets[key] = 0;
       revBuckets[key] = { date: key, conversations: 0, orders: 0, revenue: 0 };
     }
 
     for (const c of conversations) {
-      const key = new Date(c.started_at).toISOString().split("T")[0];
+      const key = toGeorgianDateKey(c.started_at);
       if (convBuckets[key] !== undefined) convBuckets[key]++;
       if (revBuckets[key]) revBuckets[key].conversations++;
     }
 
     for (const o of orders) {
-      const key = new Date(o.created_at).toISOString().split("T")[0];
+      const key = toGeorgianDateKey(o.created_at);
       if (revBuckets[key]) {
         revBuckets[key].orders++;
         revBuckets[key].revenue += o.total ?? 0;

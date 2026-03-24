@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { AdminDashboardStats, AuditLogEntry } from "@/types/admin";
+import { georgianMonthStartUTC } from "@/lib/utils/georgian-time";
 
 export const dynamic = "force-dynamic";
 import { StatsGrid } from "@/components/admin/overview/stats-grid";
@@ -29,11 +30,7 @@ const MONTH_NAMES = [
 async function getDashboardData() {
   const supabase = createAdminClient();
   const now = new Date();
-  const startOfMonth = new Date(
-    now.getFullYear(),
-    now.getMonth(),
-    1,
-  ).toISOString();
+  const startOfMonth = georgianMonthStartUTC();
 
   // Parallel queries
   const [tenantsResult, ticketsResult, healthResult, auditResult] =

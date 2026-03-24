@@ -79,9 +79,9 @@ export default async function BillingPage() {
   // Estimate trial conversion
   const convertedTrials = activeTenants.filter((t) => {
     const created = new Date(t.created_at);
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 60);
-    return created > thirtyDaysAgo;
+    const sixtyDaysAgo = new Date();
+    sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
+    return created > sixtyDaysAgo;
   }).length;
   const totalTrialPool = trialTenants.length + convertedTrials || 1;
   const trialConversionRate = (convertedTrials / totalTrialPool) * 100;

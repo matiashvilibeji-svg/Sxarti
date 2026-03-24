@@ -34,11 +34,9 @@ export function useWebSearchQuota(
       const monthlyLimit = limitData?.monthly_limit ?? 0;
       setLimit(monthlyLimit);
 
-      // Fetch current month's usage
-      const currentMonth = new Date();
-      currentMonth.setDate(1);
-      currentMonth.setHours(0, 0, 0, 0);
-      const monthStr = currentMonth.toISOString().split("T")[0];
+      // Fetch current month's usage — must match server's date_trunc('month', now())::date (UTC)
+      const now = new Date();
+      const monthStr = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}-01`;
 
       const { data: usageData } = await supabase
         .from("web_search_usage")

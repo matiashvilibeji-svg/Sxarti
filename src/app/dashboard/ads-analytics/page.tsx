@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils";
 import { format, formatDistanceToNow } from "date-fns";
 import { ka } from "date-fns/locale";
 import { useToast } from "@/components/ui/use-toast";
+import { toGeorgianDateKey } from "@/lib/utils/georgian-time";
 import type {
   MetaAdAccount,
   AdCampaign,
@@ -97,8 +98,8 @@ function AdsAnalyticsContent() {
     const dateTo = new Date();
     const dateFrom = new Date(Date.now() - days * 86400000);
     return {
-      from: dateFrom.toISOString().split("T")[0],
-      to: dateTo.toISOString().split("T")[0],
+      from: toGeorgianDateKey(dateFrom),
+      to: toGeorgianDateKey(dateTo),
     };
   }, [period, customFrom, customTo]);
 
@@ -177,7 +178,7 @@ function AdsAnalyticsContent() {
     const hourBuckets: Record<number, number> = {};
     for (const c of convsRes.data ?? []) {
       const d = new Date(c.started_at);
-      const date = d.toISOString().split("T")[0];
+      const date = toGeorgianDateKey(d.toISOString());
       convByDate[date] = (convByDate[date] || 0) + 1;
       const hour = d.getHours();
       hourBuckets[hour] = (hourBuckets[hour] || 0) + 1;
@@ -704,8 +705,8 @@ function AdsAnalyticsContent() {
                     setPeriod("custom");
                     if (!customFrom) {
                       const d = new Date(Date.now() - 30 * 86400000);
-                      setCustomFrom(d.toISOString().split("T")[0]);
-                      setCustomTo(new Date().toISOString().split("T")[0]);
+                      setCustomFrom(toGeorgianDateKey(d));
+                      setCustomTo(toGeorgianDateKey(new Date()));
                     }
                   }}
                   className={cn(

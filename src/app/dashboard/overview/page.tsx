@@ -2,6 +2,10 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { MessageSquare, ShoppingCart, DollarSign, Clock } from "lucide-react";
 import { formatGEL } from "@/lib/utils/currency";
+import {
+  georgianTodayStartUTC,
+  toGeorgianDateKey,
+} from "@/lib/utils/georgian-time";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { RecentOrders } from "@/components/dashboard/recent-orders";
 import { AttentionConversations } from "@/components/dashboard/attention-conversations";
@@ -27,9 +31,7 @@ export default async function OverviewPage() {
   if (!tenant) redirect("/step-1");
 
   const tenantId = tenant.id;
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const todayISO = today.toISOString();
+  const todayISO = georgianTodayStartUTC();
 
   // Parallel data fetching
   const [
@@ -131,14 +133,14 @@ export default async function OverviewPage() {
   }[] = [];
   for (let i = 6; i >= 0; i--) {
     const d = new Date(Date.now() - i * 86400000);
-    const dateStr = d.toISOString().split("T")[0];
+    const dateStr = toGeorgianDateKey(d);
     trendData.push({ date: dateStr, conversations: 0, orders: 0, revenue: 0 });
   }
 
   // Count conversations per day
   if (trendRes.data) {
     for (const conv of trendRes.data) {
-      const dateStr = new Date(conv.started_at).toISOString().split("T")[0];
+      const dateStr = toGeorgianDateKey(conv.started_at);
       const bucket = trendData.find((d) => d.date === dateStr);
       if (bucket) bucket.conversations++;
     }
@@ -153,7 +155,7 @@ export default async function OverviewPage() {
 
   if (trendOrders) {
     for (const order of trendOrders) {
-      const dateStr = new Date(order.created_at).toISOString().split("T")[0];
+      const dateStr = toGeorgianDateKey(order.created_at);
       const bucket = trendData.find((d) => d.date === dateStr);
       if (bucket) {
         bucket.orders++;
