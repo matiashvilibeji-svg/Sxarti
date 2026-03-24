@@ -328,17 +328,15 @@ export async function POST(request: NextRequest) {
   }
 
   const genAI = new GoogleGenerativeAI(apiKey);
-  const modelConfig: {
-    model: string;
-    systemInstruction: string;
-    tools?: { googleSearchRetrieval: Record<string, never> }[];
-  } = {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const modelConfig: any = {
     model: "gemini-2.5-flash",
     systemInstruction: systemPrompt,
   };
 
   if (useWebSearch) {
-    modelConfig.tools = [{ googleSearchRetrieval: {} }];
+    // Gemini 2.x+ models use 'googleSearch' (not the deprecated 'googleSearchRetrieval')
+    modelConfig.tools = [{ googleSearch: {} }];
   }
 
   const model = genAI.getGenerativeModel(modelConfig);
@@ -405,13 +403,18 @@ export async function POST(request: NextRequest) {
         if (useWebSearch) {
           try {
             const aggregated = await result.response;
-            const groundingMeta = aggregated.candidates?.[0]?.groundingMetadata;
-            // Note: SDK v0.21 uses 'groundingChuncks' (typo in the SDK)
-            const chunks = groundingMeta?.groundingChuncks;
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const groundingMeta = (aggregated.candidates?.[0] as any)
+              ?.groundingMetadata;
+            // Handle both correct spelling and SDK v0.21 typo
+            const chunks =
+              groundingMeta?.groundingChunks ?? groundingMeta?.groundingChuncks;
             if (chunks && chunks.length > 0) {
               webSources = chunks
-                .filter((chunk) => chunk.web?.uri)
-                .map((chunk) => ({
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                .filter((chunk: any) => chunk.web?.uri)
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                .map((chunk: any) => ({
                   type: "web" as const,
                   title: chunk.web?.title || chunk.web?.uri || "Source",
                   url: chunk.web!.uri!,
@@ -458,7 +461,11 @@ export async function POST(request: NextRequest) {
         controller.close();
       } catch (error) {
         if (cancelled) return;
-        console.error("Gemini streaming error:", error);
+        console.error("Gemini streaming error:", {
+          message: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : undefined,
+          useWebSearch,
+        });
         const errorText =
           "ბოდიში, ტექნიკური შეფერხება მოხდა. გთხოვთ სცადოთ თავიდან.";
         try {
