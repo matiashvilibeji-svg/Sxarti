@@ -199,7 +199,7 @@ export default function AIAssistantPage() {
           .order("sort_order"),
       ]);
 
-      // Seed defaults if empty
+      // Seed defaults if empty, or add missing source types for existing tenants
       let knowledgeSources = (srcRes.data as KnowledgeSource[]) || [];
       if (knowledgeSources.length === 0) {
         const seedRows = DEFAULT_SOURCES.map((s) => ({
@@ -211,6 +211,26 @@ export default function AIAssistantPage() {
           .insert(seedRows)
           .select("*");
         knowledgeSources = (seeded as KnowledgeSource[]) || [];
+      } else {
+        // Insert any missing source types (e.g. "ads" added after initial setup)
+        const existingTypes = new Set<string>(
+          knowledgeSources.map((s) => s.source_type),
+        );
+        const missing = DEFAULT_SOURCES.filter(
+          (s) => !existingTypes.has(s.source_type),
+        );
+        if (missing.length > 0) {
+          const { data: inserted } = await supabase
+            .from("knowledge_sources")
+            .insert(missing.map((s) => ({ tenant_id: tid, ...s })))
+            .select("*");
+          if (inserted) {
+            knowledgeSources = [
+              ...knowledgeSources,
+              ...(inserted as KnowledgeSource[]),
+            ];
+          }
+        }
       }
 
       let behaviorRules = (rulRes.data as BehaviorRule[]) || [];
