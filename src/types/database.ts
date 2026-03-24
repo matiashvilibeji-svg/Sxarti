@@ -91,12 +91,20 @@ export interface CustomerInfo {
   city?: string;
 }
 
+export interface MessageAttachment {
+  type: "image" | "audio" | "video" | "file";
+  url: string;
+  mime_type: string;
+  original_url?: string;
+}
+
 export interface Message {
   id: string;
   conversation_id: string;
   tenant_id: string;
   sender: "customer" | "bot" | "human";
   content: string;
+  attachments: MessageAttachment[];
   platform_message_id: string | null;
   created_at: string;
 }

@@ -1,11 +1,19 @@
 import { createHmac, timingSafeEqual } from "crypto";
 
+export interface WebhookAttachment {
+  type: "image" | "audio" | "video" | "file" | "fallback";
+  payload?: {
+    url?: string;
+  };
+}
+
 export interface InstagramWebhookMessage {
   senderId: string;
   recipientId: string;
   messageText: string;
   messageId: string;
   timestamp: number;
+  attachments: WebhookAttachment[];
 }
 
 export function verifyInstagramSignature(
@@ -43,7 +51,11 @@ export function parseInstagramWebhookPayload(
     messaging?: Array<{
       sender?: { id?: string };
       recipient?: { id?: string };
-      message?: { mid?: string; text?: string };
+      message?: {
+        mid?: string;
+        text?: string;
+        attachments?: WebhookAttachment[];
+      };
       timestamp?: number;
     }>;
   }>;
@@ -54,16 +66,25 @@ export function parseInstagramWebhookPayload(
     if (!Array.isArray(entry.messaging)) continue;
 
     for (const event of entry.messaging) {
-      if (!event.message?.text || !event.sender?.id || !event.recipient?.id) {
+      if (!event.sender?.id || !event.recipient?.id || !event.message) {
         continue;
       }
+
+      const hasText = !!event.message.text;
+      const attachments = (event.message.attachments ?? []).filter(
+        (a) => a.type !== "fallback" && a.payload?.url,
+      );
+      const hasAttachments = attachments.length > 0;
+
+      if (!hasText && !hasAttachments) continue;
 
       messages.push({
         senderId: event.sender.id,
         recipientId: event.recipient.id,
-        messageText: event.message.text,
+        messageText: event.message.text ?? "",
         messageId: event.message.mid ?? "",
         timestamp: event.timestamp ?? Date.now(),
+        attachments,
       });
     }
   }

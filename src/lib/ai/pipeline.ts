@@ -13,16 +13,23 @@ import {
 } from "@/lib/instagram/messaging";
 import { isGeorgianScript, latinToGeorgian } from "@/lib/utils/georgian";
 import { notifyOwner } from "@/lib/notifications";
+import { processAttachments } from "@/lib/media/storage";
 import type {
   Tenant,
   Product,
   DeliveryZone,
   FAQ,
   Message,
+  MessageAttachment,
   Conversation,
   CartItem,
   OrderItem,
 } from "@/types/database";
+
+export interface IncomingAttachment {
+  type: "image" | "audio" | "video" | "file";
+  url: string;
+}
 
 export interface IncomingMessage {
   platform: "messenger" | "instagram";
@@ -30,6 +37,7 @@ export interface IncomingMessage {
   pageId: string;
   messageText: string;
   platformMessageId?: string;
+  attachments?: IncomingAttachment[];
 }
 
 function generateOrderNumber(): string {
@@ -115,6 +123,16 @@ export async function processMessage(incoming: IncomingMessage): Promise<void> {
 
   const typedConv = conversation as Conversation;
 
+  // Process media attachments (download from CDN, upload to Supabase Storage)
+  let storedAttachments: MessageAttachment[] = [];
+  if (incoming.attachments && incoming.attachments.length > 0) {
+    storedAttachments = await processAttachments(
+      typedTenant.id,
+      typedConv.id,
+      incoming.attachments,
+    );
+  }
+
   // If handoff — store message only, don't call AI
   if (typedConv.status === "handoff") {
     await supabase.from("messages").insert({
@@ -123,6 +141,7 @@ export async function processMessage(incoming: IncomingMessage): Promise<void> {
       sender: "customer",
       content: incoming.messageText,
       platform_message_id: incoming.platformMessageId ?? null,
+      attachments: storedAttachments,
     });
     return;
   }
@@ -134,6 +153,7 @@ export async function processMessage(incoming: IncomingMessage): Promise<void> {
     sender: "customer",
     content: incoming.messageText,
     platform_message_id: incoming.platformMessageId ?? null,
+    attachments: storedAttachments,
   });
 
   // 6. Load context (parallel)
@@ -181,18 +201,19 @@ export async function processMessage(incoming: IncomingMessage): Promise<void> {
 
   // 9. Enrich with transliteration
   let enrichedMessage = incoming.messageText;
-  if (!isGeorgianScript(incoming.messageText)) {
+  if (incoming.messageText && !isGeorgianScript(incoming.messageText)) {
     const transliterated = latinToGeorgian(incoming.messageText);
     enrichedMessage = `${incoming.messageText}\n[ტრანსლიტერაცია: ${transliterated}]`;
   }
 
-  // 10. Call Gemini
+  // 10. Call Gemini (with media attachments if present)
   let response;
   try {
     response = await generateBotResponse(
       systemPrompt,
       conversationHistory,
       enrichedMessage,
+      storedAttachments.length > 0 ? storedAttachments : undefined,
     );
   } catch (error) {
     console.error("Gemini call failed:", error);

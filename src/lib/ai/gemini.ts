@@ -1,5 +1,7 @@
 import { GoogleGenerativeAI, SchemaType } from "@google/generative-ai";
-import type { Content } from "@google/generative-ai";
+import type { Content, Part } from "@google/generative-ai";
+import type { MessageAttachment } from "@/types/database";
+import { downloadAsBase64 } from "@/lib/media/storage";
 
 export interface GeminiAction {
   type:
@@ -83,6 +85,7 @@ export async function generateBotResponse(
   systemPrompt: string,
   conversationHistory: Content[],
   userMessage: string,
+  attachments?: MessageAttachment[],
 ): Promise<GeminiResponse> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
@@ -99,9 +102,42 @@ export async function generateBotResponse(
     },
   });
 
+  // Build multimodal parts for the current message
+  const userParts: Part[] = [];
+
+  // Add media attachments as inline data (images, audio)
+  if (attachments && attachments.length > 0) {
+    for (const attachment of attachments) {
+      if (attachment.type === "image" || attachment.type === "audio") {
+        const mediaData = await downloadAsBase64(attachment.url);
+        if (mediaData) {
+          userParts.push({
+            inlineData: {
+              data: mediaData.data,
+              mimeType: mediaData.mimeType,
+            },
+          });
+        }
+      }
+    }
+  }
+
+  // Add text part (or a descriptor if no text but has attachments)
+  if (userMessage) {
+    userParts.push({ text: userMessage });
+  } else if (userParts.length > 0) {
+    // Media-only message — add context so Gemini knows to analyze the media
+    userParts.push({ text: "[მომხმარებელმა გამოგზავნა მედია ფაილი]" });
+  }
+
+  // Fallback: ensure at least one part
+  if (userParts.length === 0) {
+    userParts.push({ text: userMessage || "" });
+  }
+
   const contents: Content[] = [
     ...conversationHistory,
-    { role: "user", parts: [{ text: userMessage }] },
+    { role: "user", parts: userParts },
   ];
 
   try {

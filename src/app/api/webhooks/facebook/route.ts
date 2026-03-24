@@ -47,6 +47,12 @@ export async function POST(request: NextRequest) {
         pageId: msg.recipientId,
         messageText: msg.messageText,
         platformMessageId: msg.messageId,
+        attachments: msg.attachments
+          .filter((a) => a.payload?.url && a.type !== "fallback")
+          .map((a) => ({
+            type: a.type as "image" | "audio" | "video" | "file",
+            url: a.payload!.url!,
+          })),
       });
     } catch (error) {
       console.error("Error processing Facebook message:", error);

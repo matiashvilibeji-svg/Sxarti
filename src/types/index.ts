@@ -7,6 +7,7 @@ export type {
   CartItem,
   CustomerInfo,
   Message,
+  MessageAttachment,
   Order,
   OrderItem,
   FAQ,
