@@ -7,6 +7,7 @@ import {
   MessageCircle,
   ShoppingBag,
   Package,
+  Truck,
   BarChart3,
   Settings,
 } from "lucide-react";
@@ -34,6 +35,11 @@ const navItems = [
     label: "პროდუქტები",
     icon: Package,
     href: "/dashboard/products",
+  },
+  {
+    label: "მიწოდება",
+    icon: Truck,
+    href: "/dashboard/delivery-zones",
   },
   {
     label: "ანალიტიკა",

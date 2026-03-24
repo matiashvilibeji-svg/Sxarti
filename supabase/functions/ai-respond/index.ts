@@ -52,6 +52,13 @@ serve(async (req) => {
       .eq("tenant_id", tenant_id)
       .eq("is_active", true);
 
+    // Load delivery zones for context
+    const { data: deliveryZones } = await supabase
+      .from("delivery_zones")
+      .select("zone_name, fee, estimated_days, is_active")
+      .eq("tenant_id", tenant_id)
+      .eq("is_active", true);
+
     const toneMap = {
       formal: "ფორმალური და პროფესიონალური",
       friendly: "მეგობრული და თბილი",
@@ -64,10 +71,15 @@ serve(async (req) => {
 ხელმისაწვდომი პროდუქცია:
 ${(products || []).map((p) => `- ${p.name}: ${p.price} ₾ (მარაგი: ${p.stock_quantity})`).join("\n")}
 
+მიტანის ზონები და ტარიფები:
+${(deliveryZones || []).map((z) => `- ${z.zone_name}: ${z.fee} ₾ (სავარაუდო ვადა: ${z.estimated_days || "არ არის მითითებული"})`).join("\n")}
+
 წესები:
 - უპასუხე მხოლოდ ქართულ ენაზე
 - დაეხმარე მომხმარებელს პროდუქციის არჩევაში
 - თუ მომხმარებელი მზად არის შესაკვეთად, შეაგროვე: სახელი, ტელეფონი, მისამართი
+- თუ მომხმარებელი იკითხავს მიტანის ფასს ან ვადას, მიაწოდე ზუსტი ინფორმაცია მიტანის ზონებიდან
+- თუ მომხმარებლის ადგილმდებარეობა არ ემთხვევა არცერთ ზონას, შეატყობინე რომ მიტანა მხოლოდ ჩამოთვლილ ზონებშია ხელმისაწვდომი
 - თუ ვერ პასუხობ კითხვას, თავაზიანად გადამისამართე ოპერატორთან`;
 
     const conversationHistory = (messages || []).map((m) => ({
