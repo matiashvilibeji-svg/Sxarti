@@ -10,6 +10,7 @@ import type {
   KnowledgeDocument,
   BotInstruction,
   BehaviorRule,
+  KnowledgeSource,
 } from "@/types/database";
 
 export const maxDuration = 60;
@@ -157,6 +158,7 @@ export async function POST(request: NextRequest) {
     adMetricsRes,
     adCampaignsRes,
     adRecsRes,
+    knowledgeSourcesRes,
   ] = await Promise.all([
     admin
       .from("products")
@@ -234,38 +236,57 @@ export async function POST(request: NextRequest) {
           .order("generated_at", { ascending: false })
           .limit(5)
       : Promise.resolve({ data: null }),
+    admin.from("knowledge_sources").select("*").eq("tenant_id", tenant_id),
   ]);
 
-  // Track sources
-  if (productsRes.data?.length) {
+  // Determine which sources are enabled via knowledge base toggles
+  const knowledgeSources =
+    (knowledgeSourcesRes.data as KnowledgeSource[]) || [];
+  const enabledSourceTypes = new Set(
+    knowledgeSources.filter((s) => s.is_enabled).map((s) => s.source_type),
+  );
+  const noSourcesConfigured = knowledgeSources.length === 0;
+
+  const includeProducts =
+    noSourcesConfigured || enabledSourceTypes.has("products");
+  const includeOrders = noSourcesConfigured || enabledSourceTypes.has("orders");
+  const includeConversations =
+    noSourcesConfigured || enabledSourceTypes.has("conversations");
+  const includeZones =
+    noSourcesConfigured || enabledSourceTypes.has("delivery_zones");
+  const includeFaqs = noSourcesConfigured || enabledSourceTypes.has("faqs");
+  const includeAds = noSourcesConfigured || enabledSourceTypes.has("ads");
+
+  // Track sources (only if enabled)
+  if (includeProducts && productsRes.data?.length) {
     sourcesUsed.push({
       type: "products",
       label: "პროდუქტები",
       count: productsRes.data.length,
     });
   }
-  if (ordersCountRes.count) {
+  if (includeOrders && ordersCountRes.count) {
     sourcesUsed.push({
       type: "orders",
       label: "შეკვეთები",
       count: ordersCountRes.count,
     });
   }
-  if (conversationsRes.count) {
+  if (includeConversations && conversationsRes.count) {
     sourcesUsed.push({
       type: "conversations",
       label: "საუბრები",
       count: conversationsRes.count,
     });
   }
-  if (zonesRes.data?.length) {
+  if (includeZones && zonesRes.data?.length) {
     sourcesUsed.push({
       type: "delivery_zones",
       label: "მიწოდება",
       count: zonesRes.data.length,
     });
   }
-  if (faqsRes.data?.length) {
+  if (includeFaqs && faqsRes.data?.length) {
     sourcesUsed.push({
       type: "faqs",
       label: "FAQ",
@@ -289,7 +310,7 @@ export async function POST(request: NextRequest) {
 
   // ─── Build ads summary for prompt ──────────────────────────
   let adsSummary = null;
-  if (adMetricsRes.data?.length && adCampaignsRes.data?.length) {
+  if (includeAds && adMetricsRes.data?.length && adCampaignsRes.data?.length) {
     const metricsData = adMetricsRes.data as Array<{
       spend: number;
       impressions: number;
@@ -383,20 +404,21 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  // Build system prompt
+  // Build system prompt — only include data from enabled knowledge sources
   const systemPrompt = buildOwnerChatPrompt({
     tenant: typedTenant,
-    products: productsRes.data || [],
-    deliveryZones: zonesRes.data || [],
-    faqs: faqsRes.data || [],
-    orders: {
-      count: ordersCountRes.count || 0,
-      recent: ordersRes.data || [],
-    },
-    conversations: {
-      count: conversationsRes.count || 0,
-      active: activeConvsRes.count || 0,
-    },
+    products: includeProducts ? productsRes.data || [] : [],
+    deliveryZones: includeZones ? zonesRes.data || [] : [],
+    faqs: includeFaqs ? faqsRes.data || [] : [],
+    orders: includeOrders
+      ? { count: ordersCountRes.count || 0, recent: ordersRes.data || [] }
+      : { count: 0, recent: [] },
+    conversations: includeConversations
+      ? {
+          count: conversationsRes.count || 0,
+          active: activeConvsRes.count || 0,
+        }
+      : { count: 0, active: 0 },
     knowledgeEntries: (entriesRes.data as KnowledgeEntry[]) || [],
     knowledgeDocuments: (docsRes.data as KnowledgeDocument[]) || [],
     botInstruction: instructionRes.data as BotInstruction | null,

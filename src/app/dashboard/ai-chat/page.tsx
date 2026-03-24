@@ -197,6 +197,7 @@ interface SourceCount {
   type: string;
   label: string;
   count: number;
+  enabled: boolean;
 }
 
 // ─── Date Grouping Helper ───────────────────────────────────────
@@ -319,65 +320,109 @@ function AiChatContent() {
     if (!tenant) return;
 
     async function loadSourceCounts() {
-      const [products, orders, conversations, zones, faqs, entries, docs] =
-        await Promise.all([
-          supabase
-            .from("products")
-            .select("id", { count: "exact", head: true })
-            .eq("tenant_id", tenant!.id)
-            .eq("is_active", true),
-          supabase
-            .from("orders")
-            .select("id", { count: "exact", head: true })
-            .eq("tenant_id", tenant!.id),
-          supabase
-            .from("conversations")
-            .select("id", { count: "exact", head: true })
-            .eq("tenant_id", tenant!.id),
-          supabase
-            .from("delivery_zones")
-            .select("id", { count: "exact", head: true })
-            .eq("tenant_id", tenant!.id)
-            .eq("is_active", true),
-          supabase
-            .from("faqs")
-            .select("id", { count: "exact", head: true })
-            .eq("tenant_id", tenant!.id),
-          supabase
-            .from("knowledge_entries")
-            .select("id", { count: "exact", head: true })
-            .eq("tenant_id", tenant!.id)
-            .eq("is_active", true),
-          supabase
-            .from("knowledge_documents")
-            .select("id", { count: "exact", head: true })
-            .eq("tenant_id", tenant!.id)
-            .eq("status", "ready"),
-        ]);
+      const [
+        products,
+        orders,
+        conversations,
+        zones,
+        faqs,
+        entries,
+        docs,
+        kSources,
+      ] = await Promise.all([
+        supabase
+          .from("products")
+          .select("id", { count: "exact", head: true })
+          .eq("tenant_id", tenant!.id)
+          .eq("is_active", true),
+        supabase
+          .from("orders")
+          .select("id", { count: "exact", head: true })
+          .eq("tenant_id", tenant!.id),
+        supabase
+          .from("conversations")
+          .select("id", { count: "exact", head: true })
+          .eq("tenant_id", tenant!.id),
+        supabase
+          .from("delivery_zones")
+          .select("id", { count: "exact", head: true })
+          .eq("tenant_id", tenant!.id)
+          .eq("is_active", true),
+        supabase
+          .from("faqs")
+          .select("id", { count: "exact", head: true })
+          .eq("tenant_id", tenant!.id),
+        supabase
+          .from("knowledge_entries")
+          .select("id", { count: "exact", head: true })
+          .eq("tenant_id", tenant!.id)
+          .eq("is_active", true),
+        supabase
+          .from("knowledge_documents")
+          .select("id", { count: "exact", head: true })
+          .eq("tenant_id", tenant!.id)
+          .eq("status", "ready"),
+        supabase
+          .from("knowledge_sources")
+          .select("source_type, is_enabled")
+          .eq("tenant_id", tenant!.id),
+      ]);
+
+      // Build toggle map — if no sources configured, default all to enabled
+      const sourceToggles = new Map<string, boolean>();
+      const ksData = kSources.data || [];
+      if (ksData.length === 0) {
+        // No config yet — all enabled by default
+      } else {
+        for (const s of ksData) {
+          sourceToggles.set(s.source_type, s.is_enabled);
+        }
+      }
+      const isOn = (type: string) =>
+        ksData.length === 0 || (sourceToggles.get(type) ?? true);
 
       setDataSources([
         {
           type: "products",
           label: "პროდუქტები",
           count: products.count || 0,
+          enabled: isOn("products"),
         },
-        { type: "orders", label: "შეკვეთები", count: orders.count || 0 },
+        {
+          type: "orders",
+          label: "შეკვეთები",
+          count: orders.count || 0,
+          enabled: isOn("orders"),
+        },
         {
           type: "conversations",
           label: "საუბრები",
           count: conversations.count || 0,
+          enabled: isOn("conversations"),
         },
-        { type: "zones", label: "მიწოდების ზონები", count: zones.count || 0 },
-        { type: "faqs", label: "FAQ", count: faqs.count || 0 },
+        {
+          type: "zones",
+          label: "მიწოდების ზონები",
+          count: zones.count || 0,
+          enabled: isOn("delivery_zones"),
+        },
+        {
+          type: "faqs",
+          label: "FAQ",
+          count: faqs.count || 0,
+          enabled: isOn("faqs"),
+        },
         {
           type: "knowledge",
           label: "ცოდნის ბაზა",
           count: entries.count || 0,
+          enabled: true,
         },
         {
           type: "documents",
           label: "დოკუმენტები",
           count: docs.count || 0,
+          enabled: true,
         },
       ]);
     }
@@ -906,14 +951,19 @@ function AiChatContent() {
                       key={source.type}
                       className={cn(
                         "flex items-center justify-between rounded-lg px-2 py-1.5 text-sm",
-                        source.count === 0 && "opacity-40",
+                        (!source.enabled || source.count === 0) && "opacity-40",
                       )}
                     >
                       <span className="text-on-surface-variant">
                         {source.label}
+                        {!source.enabled && (
+                          <span className="ml-1 text-[10px] text-red-400">
+                            გამორთ.
+                          </span>
+                        )}
                       </span>
                       <span className="font-medium text-on-surface">
-                        {source.count}
+                        {source.enabled ? source.count : "—"}
                       </span>
                     </div>
                   ))}
