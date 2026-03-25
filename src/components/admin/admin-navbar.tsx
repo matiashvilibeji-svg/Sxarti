@@ -53,13 +53,15 @@ export function AdminNavbar({ className }: AdminNavbarProps) {
   return (
     <header
       className={cn(
-        "fixed left-64 right-0 top-0 z-20 flex h-16 items-center justify-between bg-surface-container-lowest px-6 shadow-ambient-sm",
+        "fixed left-0 right-0 top-0 z-20 flex h-16 items-center justify-between bg-surface-container-lowest px-4 shadow-ambient-sm md:left-64 md:px-6",
         className,
       )}
     >
-      <div className="text-sm font-medium text-on-surface">Sxarti Admin</div>
+      <div className="pl-10 text-sm font-medium text-on-surface md:pl-0">
+        Sxarti Admin
+      </div>
 
-      <div className="relative w-80">
+      <div className="relative hidden w-80 md:block">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-on-surface-variant" />
         <input
           type="text"

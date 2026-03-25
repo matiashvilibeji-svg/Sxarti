@@ -71,32 +71,52 @@ export default function SettingsPage() {
       </p>
 
       <Tabs defaultValue="profile" className="mt-6">
-        <TabsList className="grid w-full grid-cols-6">
-          <TabsTrigger value="profile" className="gap-1.5 text-xs">
-            <User className="h-3.5 w-3.5" />
-            პროფილი
-          </TabsTrigger>
-          <TabsTrigger value="bot" className="gap-1.5 text-xs">
-            <Bot className="h-3.5 w-3.5" />
-            ბოტი
-          </TabsTrigger>
-          <TabsTrigger value="connections" className="gap-1.5 text-xs">
-            <Link2 className="h-3.5 w-3.5" />
-            კავშირები
-          </TabsTrigger>
-          <TabsTrigger value="notifications" className="gap-1.5 text-xs">
-            <Bell className="h-3.5 w-3.5" />
-            შეტყობინებები
-          </TabsTrigger>
-          <TabsTrigger value="faq" className="gap-1.5 text-xs">
-            <HelpCircle className="h-3.5 w-3.5" />
-            FAQ
-          </TabsTrigger>
-          <TabsTrigger value="subscription" className="gap-1.5 text-xs">
-            <CreditCard className="h-3.5 w-3.5" />
-            გამოწერა
-          </TabsTrigger>
-        </TabsList>
+        <div className="-mx-4 overflow-x-auto px-4 md:mx-0 md:px-0">
+          <TabsList className="inline-flex w-auto min-w-full md:grid md:w-full md:grid-cols-6">
+            <TabsTrigger
+              value="profile"
+              className="gap-1.5 text-xs whitespace-nowrap"
+            >
+              <User className="h-3.5 w-3.5" />
+              პროფილი
+            </TabsTrigger>
+            <TabsTrigger
+              value="bot"
+              className="gap-1.5 text-xs whitespace-nowrap"
+            >
+              <Bot className="h-3.5 w-3.5" />
+              ბოტი
+            </TabsTrigger>
+            <TabsTrigger
+              value="connections"
+              className="gap-1.5 text-xs whitespace-nowrap"
+            >
+              <Link2 className="h-3.5 w-3.5" />
+              კავშირები
+            </TabsTrigger>
+            <TabsTrigger
+              value="notifications"
+              className="gap-1.5 text-xs whitespace-nowrap"
+            >
+              <Bell className="h-3.5 w-3.5" />
+              შეტყობინებები
+            </TabsTrigger>
+            <TabsTrigger
+              value="faq"
+              className="gap-1.5 text-xs whitespace-nowrap"
+            >
+              <HelpCircle className="h-3.5 w-3.5" />
+              FAQ
+            </TabsTrigger>
+            <TabsTrigger
+              value="subscription"
+              className="gap-1.5 text-xs whitespace-nowrap"
+            >
+              <CreditCard className="h-3.5 w-3.5" />
+              გამოწერა
+            </TabsTrigger>
+          </TabsList>
+        </div>
 
         <div className="mt-6">
           <TabsContent value="profile">

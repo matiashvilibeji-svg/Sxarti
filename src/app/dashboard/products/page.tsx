@@ -83,7 +83,7 @@ export default function ProductsPage() {
   if (tenantLoading) return <Loading />;
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-semibold tracking-display text-on-surface">
           პროდუქტები

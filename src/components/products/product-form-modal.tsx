@@ -180,7 +180,7 @@ export function ProductFormModal({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="max-h-[90vh] max-w-2xl overflow-y-auto"
+        className="max-h-full overflow-y-auto sm:max-h-[90vh] sm:max-w-2xl"
         onInteractOutside={(e) => e.preventDefault()}
       >
         <DialogHeader>

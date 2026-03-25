@@ -201,12 +201,16 @@ export default function OrdersPage() {
   if (tenantLoading) return <Loading />;
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-semibold tracking-display text-on-surface">
           შეკვეთები
         </h1>
-        <Button variant="outline" onClick={exportCSV}>
+        <Button
+          variant="outline"
+          onClick={exportCSV}
+          className="hidden sm:flex"
+        >
           <Download className="mr-2 h-4 w-4" />
           CSV-ის ჩამოტვირთვა
         </Button>
@@ -222,27 +226,29 @@ export default function OrdersPage() {
             className="pl-9"
           />
         </div>
-        <Select value={paymentFilter} onValueChange={setPaymentFilter}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="გადახდა" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">ყველა გადახდა</SelectItem>
-            <SelectItem value="pending">მოლოდინში</SelectItem>
-            <SelectItem value="confirmed">დადასტურებული</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={deliveryFilter} onValueChange={setDeliveryFilter}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="მიწოდება" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">ყველა მიწოდება</SelectItem>
-            <SelectItem value="pending">მოლოდინში</SelectItem>
-            <SelectItem value="shipped">გაგზავნილი</SelectItem>
-            <SelectItem value="delivered">მიწოდებული</SelectItem>
-          </SelectContent>
-        </Select>
+        <div className="grid grid-cols-2 gap-3 sm:flex">
+          <Select value={paymentFilter} onValueChange={setPaymentFilter}>
+            <SelectTrigger className="w-full sm:w-[180px]">
+              <SelectValue placeholder="გადახდა" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">ყველა გადახდა</SelectItem>
+              <SelectItem value="pending">მოლოდინში</SelectItem>
+              <SelectItem value="confirmed">დადასტურებული</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={deliveryFilter} onValueChange={setDeliveryFilter}>
+            <SelectTrigger className="w-full sm:w-[180px]">
+              <SelectValue placeholder="მიწოდება" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">ყველა მიწოდება</SelectItem>
+              <SelectItem value="pending">მოლოდინში</SelectItem>
+              <SelectItem value="shipped">გაგზავნილი</SelectItem>
+              <SelectItem value="delivered">მიწოდებული</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {loading ? (
@@ -254,8 +260,8 @@ export default function OrdersPage() {
           description="როდესაც მომხმარებლები შეკვეთებს გააკეთებენ, ისინი აქ გამოჩნდება"
         />
       ) : (
-        <div className="rounded-lg bg-surface-container-lowest ghost-border">
-          <Table>
+        <div className="overflow-x-auto rounded-lg bg-surface-container-lowest ghost-border">
+          <Table className="min-w-[640px]">
             <TableHeader>
               <TableRow>
                 <TableHead className="w-8" />

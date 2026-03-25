@@ -1,6 +1,7 @@
 "use client";
 
 import { ChatView, ConversationList } from "@/components/chat";
+import { cn } from "@/lib/utils";
 import { useSupabase } from "@/hooks/use-supabase";
 import { useTenant } from "@/hooks/use-tenant";
 import type { Conversation } from "@/types";
@@ -90,9 +91,14 @@ export default function ConversationsPage() {
   );
 
   return (
-    <div className="-m-6 flex h-[calc(100vh-4rem)]">
-      {/* Left panel — conversation list */}
-      <div className="w-80 shrink-0 border-r border-outline-variant/20 bg-surface-container-lowest">
+    <div className="-m-4 flex h-[calc(100vh-4rem)] md:-m-6">
+      {/* Left panel — conversation list (hidden on mobile when chat is open) */}
+      <div
+        className={cn(
+          "w-full shrink-0 border-r border-outline-variant/20 bg-surface-container-lowest md:w-80",
+          selectedId ? "hidden md:block" : "block",
+        )}
+      >
         <ConversationList
           conversations={conversations}
           loading={loading || tenantLoading}
@@ -101,8 +107,23 @@ export default function ConversationsPage() {
         />
       </div>
 
-      {/* Center panel — chat */}
-      <div className="flex-1 bg-surface-container-lowest">
+      {/* Center panel — chat (full-screen on mobile) */}
+      <div
+        className={cn(
+          "flex-1 bg-surface-container-lowest",
+          selectedId ? "block" : "hidden md:block",
+        )}
+      >
+        {/* Mobile back button */}
+        {selectedId && (
+          <button
+            type="button"
+            onClick={() => setSelectedId(null)}
+            className="flex items-center gap-2 border-b border-outline-variant/20 px-4 py-2 text-sm text-primary md:hidden"
+          >
+            ← უკან
+          </button>
+        )}
         <ChatView
           conversationId={selectedId}
           conversation={selectedConversation}

@@ -129,7 +129,7 @@ export default async function BusinessesPage({
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-between">
           <p className="text-sm text-on-surface-variant">
             Showing {from + 1}–{Math.min(from + PAGE_SIZE, totalCount)} of{" "}
             {totalCount}

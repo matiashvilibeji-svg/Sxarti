@@ -51,57 +51,59 @@ export function LiveActivityFeed({ items }: LiveActivityFeedProps) {
         <span className="text-[10px] text-on-surface-variant">Last 20</span>
       </div>
 
-      <div className="p-3 bg-surface-container-low/50 grid grid-cols-[2rem_1fr_5rem_4rem_3.5rem] gap-2 text-[10px] font-semibold text-on-surface-variant uppercase tracking-widest border-b border-outline-variant/10">
-        <span>Plat</span>
-        <span>Customer / Business</span>
-        <span>Status</span>
-        <span>Stage</span>
-        <span className="text-right">Time</span>
-      </div>
+      <div className="overflow-x-auto">
+        <div className="min-w-[400px] p-3 bg-surface-container-low/50 grid grid-cols-[2rem_1fr_5rem_4rem_3.5rem] gap-2 text-[10px] font-semibold text-on-surface-variant uppercase tracking-widest border-b border-outline-variant/10">
+          <span>Plat</span>
+          <span>Customer / Business</span>
+          <span>Status</span>
+          <span>Stage</span>
+          <span className="text-right">Time</span>
+        </div>
 
-      <div className="divide-y divide-outline-variant/5 max-h-[480px] overflow-y-auto">
-        {items.length === 0 ? (
-          <div className="p-6 text-center text-sm text-on-surface-variant">
-            No recent activity
-          </div>
-        ) : (
-          items.map((item) => {
-            const style = STATUS_STYLES[item.status] || STATUS_STYLES.active;
-            return (
-              <div
-                key={item.id}
-                className="grid grid-cols-[2rem_1fr_5rem_4rem_3.5rem] gap-2 items-center p-3 hover:bg-surface-container-low/50 transition-colors"
-              >
-                <span className="text-center">
-                  {item.platform === "messenger" ? (
-                    <span className="text-blue-500 text-sm">💬</span>
-                  ) : (
-                    <span className="text-pink-500 text-sm">📸</span>
-                  )}
-                </span>
-                <div className="min-w-0">
-                  <p className="text-xs font-medium text-on-surface truncate">
-                    {item.customerName || "Guest"}
-                  </p>
-                  <p className="text-[10px] text-on-surface-variant truncate">
-                    {item.businessName}
-                  </p>
-                </div>
-                <span
-                  className={`px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase text-center ${style.bg} ${style.text}`}
+        <div className="divide-y divide-outline-variant/5 max-h-[480px] overflow-y-auto min-w-[400px]">
+          {items.length === 0 ? (
+            <div className="p-6 text-center text-sm text-on-surface-variant">
+              No recent activity
+            </div>
+          ) : (
+            items.map((item) => {
+              const style = STATUS_STYLES[item.status] || STATUS_STYLES.active;
+              return (
+                <div
+                  key={item.id}
+                  className="grid grid-cols-[2rem_1fr_5rem_4rem_3.5rem] gap-2 items-center p-3 hover:bg-surface-container-low/50 transition-colors"
                 >
-                  {style.label}
-                </span>
-                <span className="text-[10px] text-on-surface-variant truncate">
-                  {item.stage}
-                </span>
-                <span className="text-right text-[10px] font-mono text-on-surface-variant">
-                  {formatTime(item.lastMessageAt)}
-                </span>
-              </div>
-            );
-          })
-        )}
+                  <span className="text-center">
+                    {item.platform === "messenger" ? (
+                      <span className="text-blue-500 text-sm">💬</span>
+                    ) : (
+                      <span className="text-pink-500 text-sm">📸</span>
+                    )}
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-xs font-medium text-on-surface truncate">
+                      {item.customerName || "Guest"}
+                    </p>
+                    <p className="text-[10px] text-on-surface-variant truncate">
+                      {item.businessName}
+                    </p>
+                  </div>
+                  <span
+                    className={`px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase text-center ${style.bg} ${style.text}`}
+                  >
+                    {style.label}
+                  </span>
+                  <span className="text-[10px] text-on-surface-variant truncate">
+                    {item.stage}
+                  </span>
+                  <span className="text-right text-[10px] font-mono text-on-surface-variant">
+                    {formatTime(item.lastMessageAt)}
+                  </span>
+                </div>
+              );
+            })
+          )}
+        </div>
       </div>
     </Card>
   );

@@ -2,7 +2,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 export default function OrdersLoading() {
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <Skeleton className="h-8 w-36" />
@@ -10,10 +10,12 @@ export default function OrdersLoading() {
       </div>
 
       {/* Filters */}
-      <div className="flex gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row">
         <Skeleton className="h-10 flex-1" />
-        <Skeleton className="h-10 w-[180px]" />
-        <Skeleton className="h-10 w-[180px]" />
+        <div className="grid grid-cols-2 gap-3 sm:flex">
+          <Skeleton className="h-10 w-full sm:w-[180px]" />
+          <Skeleton className="h-10 w-full sm:w-[180px]" />
+        </div>
       </div>
 
       {/* Table */}

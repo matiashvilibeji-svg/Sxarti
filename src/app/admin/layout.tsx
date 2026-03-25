@@ -10,8 +10,8 @@ export default function AdminLayout({
     <div className="min-h-screen bg-surface-container-low">
       <AdminSidebar />
       <AdminNavbar />
-      <main className="min-h-screen pl-64 pt-16">
-        <div className="p-6">{children}</div>
+      <main className="min-h-screen pt-16 md:pl-64">
+        <div className="p-4 md:p-6">{children}</div>
       </main>
     </div>
   );

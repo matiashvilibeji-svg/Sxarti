@@ -71,7 +71,7 @@ export function ConversationList({
             key={f.key}
             onClick={() => setStatusFilter(f.key)}
             className={cn(
-              "rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors",
+              "rounded-full px-3 py-1.5 text-[11px] font-medium transition-colors",
               statusFilter === f.key
                 ? "bg-primary text-primary-foreground"
                 : "text-on-surface-variant/70 hover:bg-surface-container-high",

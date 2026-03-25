@@ -1349,7 +1349,7 @@ export default function AIAssistantPage() {
       </div>
 
       {/* ═══ Bottom Bar ═══ */}
-      <footer className="fixed bottom-0 left-64 right-0 z-40 flex h-20 items-center justify-between border-t border-slate-100 bg-white/90 px-6 backdrop-blur-md lg:px-10">
+      <footer className="fixed bottom-0 left-0 right-0 z-40 flex h-20 items-center justify-between border-t border-slate-100 bg-white/90 px-4 backdrop-blur-md md:left-64 md:px-6 lg:px-10">
         <div className="flex items-center gap-2 text-slate-400">
           <Upload className="h-4 w-4" />
           <span className="text-xs font-medium italic">

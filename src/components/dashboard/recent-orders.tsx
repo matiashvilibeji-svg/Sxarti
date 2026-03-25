@@ -46,40 +46,42 @@ export function RecentOrders({ orders }: RecentOrdersProps) {
             შეკვეთები ჯერ არ არის
           </p>
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>შეკვეთა</TableHead>
-                <TableHead>მომხმარებელი</TableHead>
-                <TableHead>თანხა</TableHead>
-                <TableHead>სტატუსი</TableHead>
-                <TableHead>თარიღი</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {orders.map((order) => {
-                const status =
-                  statusLabels[order.payment_status] ?? statusLabels.pending;
-                return (
-                  <TableRow key={order.id}>
-                    <TableCell className="font-medium">
-                      {order.order_number}
-                    </TableCell>
-                    <TableCell>{order.customer_name}</TableCell>
-                    <TableCell>{formatGEL(order.total)}</TableCell>
-                    <TableCell>
-                      <Badge variant={status.variant}>{status.label}</Badge>
-                    </TableCell>
-                    <TableCell className="text-on-surface-variant">
-                      {format(new Date(order.created_at), "d MMM", {
-                        locale: ka,
-                      })}
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
+          <div className="overflow-x-auto">
+            <Table className="min-w-[480px]">
+              <TableHeader>
+                <TableRow>
+                  <TableHead>შეკვეთა</TableHead>
+                  <TableHead>მომხმარებელი</TableHead>
+                  <TableHead>თანხა</TableHead>
+                  <TableHead>სტატუსი</TableHead>
+                  <TableHead className="hidden sm:table-cell">თარიღი</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {orders.map((order) => {
+                  const status =
+                    statusLabels[order.payment_status] ?? statusLabels.pending;
+                  return (
+                    <TableRow key={order.id}>
+                      <TableCell className="font-medium">
+                        {order.order_number}
+                      </TableCell>
+                      <TableCell>{order.customer_name}</TableCell>
+                      <TableCell>{formatGEL(order.total)}</TableCell>
+                      <TableCell>
+                        <Badge variant={status.variant}>{status.label}</Badge>
+                      </TableCell>
+                      <TableCell className="hidden text-on-surface-variant sm:table-cell">
+                        {format(new Date(order.created_at), "d MMM", {
+                          locale: ka,
+                        })}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
         )}
       </CardContent>
     </Card>

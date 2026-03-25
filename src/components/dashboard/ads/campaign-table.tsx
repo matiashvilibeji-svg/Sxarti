@@ -367,7 +367,7 @@ export function CampaignTable({ campaigns }: CampaignTableProps) {
                 {c.name}
               </span>
             </div>
-            <div className="grid grid-cols-4 gap-2 text-center">
+            <div className="grid grid-cols-2 gap-2 text-center sm:grid-cols-4">
               <div>
                 <p className="text-[10px] font-bold uppercase text-on-surface-variant">
                   დახარჯული

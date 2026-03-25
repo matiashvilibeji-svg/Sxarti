@@ -114,11 +114,11 @@ export default function MarketingPage() {
   return (
     <main>
       {/* Hero */}
-      <section className="flex flex-col items-center px-6 pb-20 pt-16 text-center">
+      <section className="flex flex-col items-center px-4 pb-16 pt-12 text-center sm:px-6 sm:pb-20 sm:pt-16">
         <Badge variant="secondary" className="mb-6">
           AI გაყიდვების ასისტენტი
         </Badge>
-        <h1 className="max-w-3xl text-4xl font-bold tracking-display text-on-surface sm:text-5xl lg:text-6xl">
+        <h1 className="max-w-3xl text-3xl font-bold tracking-display text-on-surface sm:text-5xl lg:text-6xl">
           შენი გაყიდვები
           <br />
           <span className="bg-gradient-cta bg-clip-text text-transparent">
@@ -129,18 +129,23 @@ export default function MarketingPage() {
           სხარტი — ქართული AI ბოტი, რომელიც 24/7 პასუხობს მომხმარებლებს, იღებს
           შეკვეთებს და ზრდის შენს გაყიდვებს.
         </p>
-        <div className="mt-8 flex gap-4">
-          <Button size="lg" asChild>
+        <div className="mt-8 flex w-full flex-col gap-3 px-4 sm:w-auto sm:flex-row sm:gap-4 sm:px-0">
+          <Button size="lg" className="w-full sm:w-auto" asChild>
             <Link href="/signup">
               უფასოდ დაიწყე
               <ArrowRight className="ml-2 h-4 w-4" />
             </Link>
           </Button>
-          <Button variant="outline" size="lg" asChild>
+          <Button
+            variant="outline"
+            size="lg"
+            className="w-full sm:w-auto"
+            asChild
+          >
             <Link href="#features">გაიგე მეტი</Link>
           </Button>
         </div>
-        <div className="mt-12 flex items-center gap-8 text-sm text-on-surface-variant">
+        <div className="mt-12 flex flex-col items-center gap-4 text-sm text-on-surface-variant sm:flex-row sm:gap-8">
           <div className="flex items-center gap-2">
             <ShieldCheck className="h-4 w-4 text-secondary" />
             <span>14 დღე უფასოდ</span>
@@ -153,7 +158,10 @@ export default function MarketingPage() {
       </section>
 
       {/* Features */}
-      <section id="features" className="bg-surface-container-low px-6 py-20">
+      <section
+        id="features"
+        className="bg-surface-container-low px-4 py-16 sm:px-6 sm:py-20"
+      >
         <div className="mx-auto max-w-5xl">
           <h2 className="mb-4 text-center text-3xl font-bold tracking-display text-on-surface">
             ყველაფერი რაც გჭირდება
@@ -181,7 +189,7 @@ export default function MarketingPage() {
       </section>
 
       {/* Pricing */}
-      <section id="pricing" className="px-6 py-20">
+      <section id="pricing" className="px-4 py-16 sm:px-6 sm:py-20">
         <div className="mx-auto max-w-5xl">
           <h2 className="mb-4 text-center text-3xl font-bold tracking-display text-on-surface">
             ფასები
@@ -240,7 +248,7 @@ export default function MarketingPage() {
       </section>
 
       {/* Testimonials */}
-      <section className="bg-surface-container-low px-6 py-20">
+      <section className="bg-surface-container-low px-4 py-16 sm:px-6 sm:py-20">
         <div className="mx-auto max-w-5xl">
           <h2 className="mb-12 text-center text-3xl font-bold tracking-display text-on-surface">
             რას ამბობენ ჩვენი მომხმარებლები
@@ -262,7 +270,7 @@ export default function MarketingPage() {
       </section>
 
       {/* CTA */}
-      <section className="px-6 py-20 text-center">
+      <section className="px-4 py-16 text-center sm:px-6 sm:py-20">
         <h2 className="mb-4 text-3xl font-bold tracking-display text-on-surface">
           მზად ხარ გაყიდვების გასაზრდელად?
         </h2>

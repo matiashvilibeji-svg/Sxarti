@@ -84,91 +84,93 @@ export function TicketList({
 
   return (
     <div className="bg-surface-container-lowest rounded-xl shadow-sm overflow-hidden">
-      <Table>
-        <TableHeader>
-          <TableRow className="bg-surface-container-low/30">
-            <TableHead className="text-[11px] font-bold uppercase tracking-wider">
-              Ticket ID
-            </TableHead>
-            <TableHead className="text-[11px] font-bold uppercase tracking-wider">
-              Business
-            </TableHead>
-            <TableHead className="text-[11px] font-bold uppercase tracking-wider">
-              Subject
-            </TableHead>
-            <TableHead className="text-[11px] font-bold uppercase tracking-wider">
-              Priority
-            </TableHead>
-            <TableHead className="text-[11px] font-bold uppercase tracking-wider">
-              Status
-            </TableHead>
-            <TableHead className="text-[11px] font-bold uppercase tracking-wider">
-              Created
-            </TableHead>
-            <TableHead className="text-[11px] font-bold uppercase tracking-wider">
-              Assigned
-            </TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {tickets.map((ticket) => (
-            <TableRow
-              key={ticket.id}
-              className={`cursor-pointer hover:bg-surface-container-low/50 transition-colors ${
-                ticket.priority === "critical"
-                  ? "border-l-4 border-l-red-500"
-                  : ""
-              }`}
-              onClick={() => router.push(`/admin/support/${ticket.id}`)}
-            >
-              <TableCell className="font-mono text-sm font-medium">
-                #{ticket.ticket_number}
-              </TableCell>
-              <TableCell className="text-sm font-semibold text-on-surface">
-                {ticket.tenant?.business_name || "—"}
-              </TableCell>
-              <TableCell className="text-sm text-on-surface-variant max-w-[200px] truncate">
-                {ticket.subject}
-              </TableCell>
-              <TableCell>
-                <span
-                  className={`px-2 py-1 text-[10px] font-bold rounded uppercase ${
-                    priorityStyles[ticket.priority]
-                  }`}
-                >
-                  {priorityLabels[ticket.priority]}
-                </span>
-              </TableCell>
-              <TableCell>
-                <div className="flex items-center gap-1.5 text-xs font-medium">
-                  <div
-                    className={`w-2 h-2 rounded-full ${statusDot[ticket.status]}`}
-                  />
-                  {statusLabels[ticket.status]}
-                </div>
-              </TableCell>
-              <TableCell className="font-mono text-xs text-on-surface-variant">
-                {timeAgo(ticket.created_at)}
-              </TableCell>
-              <TableCell>
-                {ticket.assigned_admin ? (
-                  <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center text-white text-xs font-bold">
-                    {ticket.assigned_admin.display_name
-                      .split(" ")
-                      .map((n) => n[0])
-                      .join("")
-                      .slice(0, 2)}
-                  </div>
-                ) : (
-                  <div className="w-7 h-7 rounded-full bg-surface-container-high border border-outline-variant flex items-center justify-center">
-                    <UserPlus className="h-3.5 w-3.5 text-on-surface-variant" />
-                  </div>
-                )}
-              </TableCell>
+      <div className="overflow-x-auto">
+        <Table className="min-w-[700px]">
+          <TableHeader>
+            <TableRow className="bg-surface-container-low/30">
+              <TableHead className="text-[11px] font-bold uppercase tracking-wider">
+                Ticket ID
+              </TableHead>
+              <TableHead className="text-[11px] font-bold uppercase tracking-wider">
+                Business
+              </TableHead>
+              <TableHead className="text-[11px] font-bold uppercase tracking-wider">
+                Subject
+              </TableHead>
+              <TableHead className="text-[11px] font-bold uppercase tracking-wider">
+                Priority
+              </TableHead>
+              <TableHead className="text-[11px] font-bold uppercase tracking-wider">
+                Status
+              </TableHead>
+              <TableHead className="text-[11px] font-bold uppercase tracking-wider">
+                Created
+              </TableHead>
+              <TableHead className="text-[11px] font-bold uppercase tracking-wider">
+                Assigned
+              </TableHead>
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+          </TableHeader>
+          <TableBody>
+            {tickets.map((ticket) => (
+              <TableRow
+                key={ticket.id}
+                className={`cursor-pointer hover:bg-surface-container-low/50 transition-colors ${
+                  ticket.priority === "critical"
+                    ? "border-l-4 border-l-red-500"
+                    : ""
+                }`}
+                onClick={() => router.push(`/admin/support/${ticket.id}`)}
+              >
+                <TableCell className="font-mono text-sm font-medium">
+                  #{ticket.ticket_number}
+                </TableCell>
+                <TableCell className="text-sm font-semibold text-on-surface">
+                  {ticket.tenant?.business_name || "—"}
+                </TableCell>
+                <TableCell className="text-sm text-on-surface-variant max-w-[200px] truncate">
+                  {ticket.subject}
+                </TableCell>
+                <TableCell>
+                  <span
+                    className={`px-2 py-1 text-[10px] font-bold rounded uppercase ${
+                      priorityStyles[ticket.priority]
+                    }`}
+                  >
+                    {priorityLabels[ticket.priority]}
+                  </span>
+                </TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-1.5 text-xs font-medium">
+                    <div
+                      className={`w-2 h-2 rounded-full ${statusDot[ticket.status]}`}
+                    />
+                    {statusLabels[ticket.status]}
+                  </div>
+                </TableCell>
+                <TableCell className="font-mono text-xs text-on-surface-variant">
+                  {timeAgo(ticket.created_at)}
+                </TableCell>
+                <TableCell>
+                  {ticket.assigned_admin ? (
+                    <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center text-white text-xs font-bold">
+                      {ticket.assigned_admin.display_name
+                        .split(" ")
+                        .map((n) => n[0])
+                        .join("")
+                        .slice(0, 2)}
+                    </div>
+                  ) : (
+                    <div className="w-7 h-7 rounded-full bg-surface-container-high border border-outline-variant flex items-center justify-center">
+                      <UserPlus className="h-3.5 w-3.5 text-on-surface-variant" />
+                    </div>
+                  )}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
 
       {totalPages > 1 && (
         <div className="flex items-center justify-between px-6 py-3 border-t border-surface-container-high">

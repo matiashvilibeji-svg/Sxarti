@@ -41,31 +41,33 @@ export default function SettingsPage() {
       </div>
 
       <Tabs defaultValue="general" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-flex">
-          <TabsTrigger value="general" className="flex items-center gap-2">
-            <Settings className="h-4 w-4 hidden sm:block" />
-            General
-          </TabsTrigger>
-          <TabsTrigger value="team" className="flex items-center gap-2">
-            <Users className="h-4 w-4 hidden sm:block" />
-            Team
-          </TabsTrigger>
-          <TabsTrigger
-            value="notifications"
-            className="flex items-center gap-2"
-          >
-            <Bell className="h-4 w-4 hidden sm:block" />
-            Notifications
-          </TabsTrigger>
-          <TabsTrigger value="security" className="flex items-center gap-2">
-            <Shield className="h-4 w-4 hidden sm:block" />
-            Security
-          </TabsTrigger>
-          <TabsTrigger value="web-search" className="flex items-center gap-2">
-            <Globe className="h-4 w-4 hidden sm:block" />
-            Web Search
-          </TabsTrigger>
-        </TabsList>
+        <div className="-mx-4 overflow-x-auto px-4 md:mx-0 md:px-0">
+          <TabsList className="inline-flex w-auto min-w-full md:grid md:w-full md:grid-cols-5">
+            <TabsTrigger value="general" className="flex items-center gap-2">
+              <Settings className="h-4 w-4 hidden sm:block" />
+              General
+            </TabsTrigger>
+            <TabsTrigger value="team" className="flex items-center gap-2">
+              <Users className="h-4 w-4 hidden sm:block" />
+              Team
+            </TabsTrigger>
+            <TabsTrigger
+              value="notifications"
+              className="flex items-center gap-2"
+            >
+              <Bell className="h-4 w-4 hidden sm:block" />
+              Notifications
+            </TabsTrigger>
+            <TabsTrigger value="security" className="flex items-center gap-2">
+              <Shield className="h-4 w-4 hidden sm:block" />
+              Security
+            </TabsTrigger>
+            <TabsTrigger value="web-search" className="flex items-center gap-2">
+              <Globe className="h-4 w-4 hidden sm:block" />
+              Web Search
+            </TabsTrigger>
+          </TabsList>
+        </div>
 
         <TabsContent value="general">
           <GeneralSettings />

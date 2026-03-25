@@ -46,11 +46,13 @@ export function Navbar({ className }: NavbarProps) {
   return (
     <header
       className={cn(
-        "fixed left-64 right-0 top-0 z-20 flex h-16 items-center justify-between bg-surface-container-lowest px-6 shadow-ambient-sm",
+        "fixed left-0 right-0 top-0 z-20 flex h-16 items-center justify-between bg-surface-container-lowest px-4 shadow-ambient-sm md:left-64 md:px-6",
         className,
       )}
     >
-      <div className="text-sm font-medium text-on-surface">ჩემი ბიზნესი</div>
+      <div className="pl-10 text-sm font-medium text-on-surface md:pl-0">
+        ჩემი ბიზნესი
+      </div>
 
       <div className="flex items-center gap-4">
         <button

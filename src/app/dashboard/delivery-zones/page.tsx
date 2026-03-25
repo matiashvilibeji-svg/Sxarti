@@ -225,7 +225,7 @@ export default function DeliveryZonesPage() {
       {/* Zone Cards */}
       <div className="overflow-hidden rounded-xl bg-white shadow-[0_20px_40px_rgba(11,28,48,0.03)]">
         {/* Column Header */}
-        <div className="grid grid-cols-12 px-6 py-3 text-xs font-bold uppercase tracking-widest text-muted-foreground/60">
+        <div className="hidden grid-cols-12 px-6 py-3 text-xs font-bold uppercase tracking-widest text-muted-foreground/60 md:grid">
           <div className="col-span-5">ზონის დასახელება</div>
           <div className="col-span-3 text-center">ფასი (₾)</div>
           <div className="col-span-3 text-center">ვადა (დღე)</div>
@@ -243,34 +243,60 @@ export default function DeliveryZonesPage() {
                 <div
                   key={zone.id}
                   className={cn(
-                    "grid grid-cols-12 items-center px-6 py-5 transition-colors",
+                    "flex flex-col gap-2 px-4 py-4 transition-colors md:grid md:grid-cols-12 md:items-center md:gap-0 md:px-6 md:py-5",
                     isEven
                       ? "bg-surface-container-low"
                       : "border border-transparent bg-white",
                   )}
                 >
-                  <div className="col-span-5 flex items-center gap-3">
-                    <div
-                      className={cn(
-                        "flex h-10 w-10 items-center justify-center rounded-lg",
-                        isEven
-                          ? "bg-primary text-white"
-                          : "bg-surface-container text-primary",
-                      )}
-                    >
-                      <Icon className="h-5 w-5" />
+                  <div className="flex items-center justify-between md:col-span-5 md:justify-start md:gap-3">
+                    <div className="flex items-center gap-3">
+                      <div
+                        className={cn(
+                          "flex h-10 w-10 items-center justify-center rounded-lg",
+                          isEven
+                            ? "bg-primary text-white"
+                            : "bg-surface-container text-primary",
+                        )}
+                      >
+                        <Icon className="h-5 w-5" />
+                      </div>
+                      <span className="font-bold text-on-surface">
+                        {zone.zone_name}
+                      </span>
                     </div>
-                    <span className="font-bold text-on-surface">
-                      {zone.zone_name}
+                    <div className="flex gap-1 md:hidden">
+                      <button
+                        onClick={() => openEditForm(zone)}
+                        className="rounded-lg p-2 text-on-surface-variant transition-colors hover:bg-surface-container-high hover:text-primary"
+                      >
+                        <Edit2 className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => setDeleteTarget(zone)}
+                        className="rounded-lg p-2 text-on-surface-variant transition-colors hover:bg-destructive/10 hover:text-destructive"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between px-1 md:col-span-3 md:block md:px-0 md:text-center">
+                    <span className="text-xs text-on-surface-variant md:hidden">
+                      ფასი
+                    </span>
+                    <span className="font-semibold text-primary">
+                      {Number(zone.fee).toFixed(2)} ₾
                     </span>
                   </div>
-                  <div className="col-span-3 text-center font-semibold text-primary">
-                    {Number(zone.fee).toFixed(2)} ₾
+                  <div className="flex items-center justify-between px-1 md:col-span-3 md:block md:px-0 md:text-center">
+                    <span className="text-xs text-on-surface-variant md:hidden">
+                      ვადა
+                    </span>
+                    <span className="text-on-surface-variant">
+                      {zone.estimated_days || "—"}
+                    </span>
                   </div>
-                  <div className="col-span-3 text-center text-on-surface-variant">
-                    {zone.estimated_days || "—"}
-                  </div>
-                  <div className="col-span-1 flex justify-end gap-1">
+                  <div className="col-span-1 hidden justify-end gap-1 md:flex">
                     <button
                       onClick={() => openEditForm(zone)}
                       className="rounded-lg p-2 text-on-surface-variant transition-colors hover:bg-surface-container-high hover:text-primary"
