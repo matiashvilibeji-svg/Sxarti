@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import {
   Layout,
   Type,
-  Image,
+  Image as ImageIcon,
   MousePointerClick,
   Grid3X3,
   MessageSquareQuote,
@@ -36,7 +36,7 @@ const BLOCK_TYPES: {
   {
     type: "image",
     label: "Image",
-    icon: <Image className="h-5 w-5" />,
+    icon: <ImageIcon className="h-5 w-5" />,
     description: "Photo with caption",
   },
   {

@@ -457,7 +457,6 @@ export async function POST(request: NextRequest) {
   }
 
   const genAI = new GoogleGenerativeAI(apiKey);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const modelConfig: any = {
     model: "gemini-2.5-flash",
     systemInstruction: systemPrompt,
@@ -532,7 +531,6 @@ export async function POST(request: NextRequest) {
         if (useWebSearch) {
           try {
             const aggregated = await result.response;
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const groundingMeta = (aggregated.candidates?.[0] as any)
               ?.groundingMetadata;
             // Handle both correct spelling and SDK v0.21 typo
@@ -540,9 +538,7 @@ export async function POST(request: NextRequest) {
               groundingMeta?.groundingChunks ?? groundingMeta?.groundingChuncks;
             if (chunks && chunks.length > 0) {
               webSources = chunks
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 .filter((chunk: any) => chunk.web?.uri)
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 .map((chunk: any) => ({
                   type: "web" as const,
                   title: chunk.web?.title || chunk.web?.uri || "Source",

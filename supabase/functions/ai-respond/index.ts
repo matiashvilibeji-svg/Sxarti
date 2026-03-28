@@ -45,22 +45,11 @@ serve(async (req) => {
       .eq("id", tenant_id)
       .single();
 
-    // Load products for context
-    const { data: products } = await supabase
-      .from("products")
-      .select("name, price, description, stock_quantity, is_active")
-      .eq("tenant_id", tenant_id)
-      .eq("is_active", true);
-
-    // Load delivery zones for context
-    const { data: deliveryZones } = await supabase
-      .from("delivery_zones")
-      .select("zone_name, fee, estimated_days, is_active")
-      .eq("tenant_id", tenant_id)
-      .eq("is_active", true);
-
-    // Load AI Assistant knowledge config
+    // Load all business context in parallel
     const [
+      productsRes,
+      deliveryZonesRes,
+      faqsRes,
       knowledgeSourcesRes,
       knowledgeEntriesRes,
       knowledgeDocsRes,
@@ -69,6 +58,20 @@ serve(async (req) => {
       adCampaignsRes,
       adMetricsRes,
     ] = await Promise.all([
+      supabase
+        .from("products")
+        .select("name, price, description, stock_quantity, is_active")
+        .eq("tenant_id", tenant_id)
+        .eq("is_active", true),
+      supabase
+        .from("delivery_zones")
+        .select("zone_name, fee, estimated_days, is_active")
+        .eq("tenant_id", tenant_id)
+        .eq("is_active", true),
+      supabase
+        .from("faqs")
+        .select("question, answer")
+        .eq("tenant_id", tenant_id),
       supabase.from("knowledge_sources").select("*").eq("tenant_id", tenant_id),
       supabase
         .from("knowledge_entries")
@@ -98,6 +101,10 @@ serve(async (req) => {
         .order("date", { ascending: false })
         .limit(50),
     ]);
+
+    const products = productsRes.data || [];
+    const deliveryZones = deliveryZonesRes.data || [];
+    const faqs = faqsRes.data || [];
 
     const toneMap = {
       formal: "ფორმალური და პროფესიონალური",
@@ -167,10 +174,12 @@ serve(async (req) => {
     const includeProducts = noSourcesConfigured || enabledTypes.has("products");
     const includeZones =
       noSourcesConfigured || enabledTypes.has("delivery_zones");
+    const includeFaqs = noSourcesConfigured || enabledTypes.has("faqs");
     const includeAds = noSourcesConfigured || enabledTypes.has("ads");
 
-    const filteredProducts = includeProducts ? products || [] : [];
-    const filteredZones = includeZones ? deliveryZones || [] : [];
+    const filteredProducts = includeProducts ? products : [];
+    const filteredZones = includeZones ? deliveryZones : [];
+    const filteredFaqs = includeFaqs ? faqs : [];
 
     const systemPrompt = `შენ ხარ "${tenant?.bot_persona_name || "ასისტენტი"}" — AI გაყიდვების ასისტენტი "${tenant?.business_name || ""}" კომპანიისთვის.
 ტონი: ${toneMap[tenant?.bot_tone as keyof typeof toneMap] || toneMap.friendly}
@@ -184,12 +193,16 @@ ${filteredProducts.map((p) => `- ${p.name}: ${p.price} ₾ (მარაგი: 
 მიტანის ზონები და ტარიფები:
 ${filteredZones.map((z) => `- ${z.zone_name}: ${z.fee} ₾ (სავარაუდო ვადა: ${z.estimated_days || "არ არის მითითებული"})`).join("\n") || "მიწოდების ინფორმაცია გამორთულია"}
 
+${filteredFaqs.length > 0 ? `ხშირი კითხვები (FAQ):\n${filteredFaqs.map((f) => `კითხვა: ${f.question}\nპასუხი: ${f.answer}`).join("\n\n")}` : ""}
+
 წესები:
 - უპასუხე მხოლოდ ქართულ ენაზე
 - დაეხმარე მომხმარებელს პროდუქციის არჩევაში
 - თუ მომხმარებელი მზად არის შესაკვეთად, შეაგროვე: სახელი, ტელეფონი, მისამართი
 - თუ მომხმარებელი იკითხავს მიტანის ფასს ან ვადას, მიაწოდე ზუსტი ინფორმაცია მიტანის ზონებიდან
 - თუ მომხმარებლის ადგილმდებარეობა არ ემთხვევა არცერთ ზონას, შეატყობინე რომ მიტანა მხოლოდ ჩამოთვლილ ზონებშია ხელმისაწვდომი
+- თუ მომხმარებლის კითხვა ემთხვევა ხშირ კითხვას (FAQ), გამოიყენე FAQ-ში მოცემული ზუსტი პასუხი
+- არ მოიგონო ფასები ან პროდუქტის დეტალები — მხოლოდ ზემოთ მითითებული ინფორმაცია გამოიყენე
 - თუ ვერ პასუხობ კითხვას, თავაზიანად გადამისამართე ოპერატორთან${customKnowledge}${(() => {
       if (!includeAds) return "";
       const campaigns = adCampaignsRes.data || [];
