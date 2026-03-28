@@ -32,7 +32,6 @@ import {
   Calculator,
   SearchCheck,
   Paperclip,
-  Loader2,
   Check,
   ExternalLink,
   Square,
@@ -166,6 +165,23 @@ const MarkdownContent = memo(function MarkdownContent({
 
 const PROSE_CLASSES =
   "prose prose-sm max-w-none dark:prose-invert prose-headings:text-on-surface prose-p:text-on-surface prose-strong:text-on-surface prose-li:text-on-surface prose-a:text-primary prose-a:underline prose-blockquote:border-primary/30 prose-blockquote:text-on-surface-variant prose-th:text-on-surface prose-td:text-on-surface prose-code:rounded prose-code:bg-surface-container-high prose-code:px-1 prose-code:py-0.5 prose-code:text-xs prose-pre:bg-surface-container-high prose-pre:text-on-surface prose-table:text-sm [&_table]:overflow-x-auto [&_table]:block";
+
+// Streaming text renderer — avoids re-parsing Markdown on every SSE chunk
+const StreamingText = memo(function StreamingText({
+  content,
+}: {
+  content: string;
+}) {
+  return (
+    <div className="whitespace-pre-wrap break-words text-sm leading-relaxed text-on-surface [&>span]:transition-opacity">
+      {content}
+      <span
+        className="ml-0.5 inline-block h-[17px] w-[2.5px] animate-pulse rounded-full bg-gradient-to-b from-primary to-primary/60 align-text-bottom"
+        style={{ animationDuration: "0.8s" }}
+      />
+    </div>
+  );
+});
 
 // ─── Types ──────────────────────────────────────────────────────
 
@@ -945,16 +961,20 @@ function AiChatContent() {
 
   if (tenantLoading) {
     return (
-      <div className="-m-6 flex h-[calc(100vh-4rem)] flex-col">
-        <div className="flex items-center justify-between border-b border-outline-variant/20 px-6 py-3">
-          <Skeleton className="h-8 w-40" />
+      <div className="-m-6 flex h-[calc(100vh-4rem)] flex-col bg-surface">
+        <div className="flex items-center justify-between px-6 py-4">
+          <Skeleton className="h-10 w-44 rounded-xl" />
           <div className="flex gap-2">
-            <Skeleton className="h-9 w-32" />
-            <Skeleton className="h-9 w-24" />
+            <Skeleton className="h-9 w-32 rounded-xl" />
+            <Skeleton className="h-9 w-24 rounded-xl" />
           </div>
         </div>
         <div className="flex flex-1 items-center justify-center">
-          <Skeleton className="h-64 w-96 rounded-2xl" />
+          <div className="space-y-4 text-center">
+            <Skeleton className="mx-auto h-16 w-16 rounded-2xl" />
+            <Skeleton className="mx-auto h-6 w-48 rounded-lg" />
+            <Skeleton className="mx-auto h-4 w-64 rounded-lg" />
+          </div>
         </div>
       </div>
     );
@@ -963,78 +983,88 @@ function AiChatContent() {
   if (!tenant) return null;
 
   const isEmpty = messages.length === 0;
+  const enabledSourceCount = dataSources.filter((s) => s.enabled).length;
+  const hasPartialSources = dataSources.some((s) => !s.enabled);
 
   // ─── Render ─────────────────────────────────────────────────
 
   return (
-    <div className="relative -m-6 flex h-[calc(100vh-4rem)] flex-col">
+    <div className="relative -m-6 flex h-[calc(100vh-4rem)] flex-col bg-surface">
       {/* ─── Top Bar ──────────────────────────────────────── */}
-      <div className="flex items-center justify-between border-b border-outline-variant/20 px-4 py-2.5 sm:px-6">
-        <div className="flex items-center gap-2.5">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-on-surface">
-            <Sparkles className="h-[18px] w-[18px] text-white" />
+      <div className="flex items-center justify-between border-b border-outline-variant/10 px-4 py-3 sm:px-6">
+        <div className="flex items-center gap-3">
+          <div className="relative flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-tertiary-container shadow-ambient-sm">
+            <Sparkles className="h-5 w-5 text-white" />
           </div>
           <div>
-            <h1 className="text-sm font-semibold leading-tight text-on-surface sm:text-base">
+            <h1 className="text-base font-semibold tracking-display text-on-surface">
               AI ჩატი
             </h1>
-            <p className="text-[11px] text-on-surface-variant">
+            <p className="text-xs text-on-surface-variant/70">
               შენი ბიზნეს ასისტენტი
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2">
           {/* New Chat */}
           <Button
             variant="outline"
             size="sm"
             onClick={startNewChat}
-            className="gap-1.5 border-outline-variant/30 text-on-surface-variant"
+            className="gap-1.5 rounded-xl border-outline-variant/20 bg-surface-container-lowest text-on-surface-variant shadow-none hover:bg-surface-container-low"
           >
             <Plus className="h-4 w-4" />
-            <span className="hidden sm:inline">ახალი საუბარი</span>
+            <span className="hidden sm:inline">ახალი</span>
           </Button>
 
           {/* Knowledge Base Pill */}
           <div className="relative" ref={knowledgeRef}>
             <button
               onClick={() => setShowKnowledgeDropdown(!showKnowledgeDropdown)}
-              className="flex items-center gap-1.5 rounded-full border border-outline-variant/30 px-3 py-1.5 text-xs font-medium text-on-surface-variant transition-colors hover:bg-surface-container-low"
+              className={cn(
+                "flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-medium transition-all",
+                showKnowledgeDropdown
+                  ? "border-primary/30 bg-primary/5 text-primary"
+                  : "border-outline-variant/20 bg-surface-container-lowest text-on-surface-variant hover:bg-surface-container-low",
+              )}
             >
+              <Database className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">
+                {hasPartialSources
+                  ? `${enabledSourceCount}/${dataSources.length}`
+                  : "ცოდნა"}
+              </span>
               <span
                 className={cn(
-                  "h-2 w-2 rounded-full",
-                  dataSources.some((s) => !s.enabled)
-                    ? "bg-amber-500"
-                    : "bg-emerald-500",
+                  "h-1.5 w-1.5 rounded-full",
+                  hasPartialSources ? "bg-amber-500" : "bg-emerald-500",
                 )}
               />
-              <span className="hidden sm:inline">
-                {dataSources.some((s) => !s.enabled)
-                  ? `ცოდნის ბაზა (${dataSources.filter((s) => s.enabled).length}/${dataSources.length})`
-                  : "ცოდნის ბაზა ჩართულია"}
-              </span>
-              <Database className="h-3.5 w-3.5 sm:hidden" />
             </button>
 
             {showKnowledgeDropdown && (
-              <div className="absolute right-0 top-full z-50 mt-2 w-64 rounded-xl border border-outline-variant/20 bg-surface-container-lowest p-3 shadow-ambient">
-                <p className="mb-2 text-xs font-semibold text-on-surface">
-                  აქტიური მონაცემები
-                </p>
-                <div className="space-y-1">
+              <div className="absolute right-0 top-full z-50 mt-2 w-72 animate-fade-in-up rounded-2xl border border-outline-variant/15 bg-surface-container-lowest p-4 shadow-ambient">
+                <div className="mb-3 flex items-center justify-between">
+                  <p className="text-sm font-semibold text-on-surface">
+                    აქტიური მონაცემები
+                  </p>
+                  <span className="rounded-lg bg-primary/8 px-2 py-0.5 text-[10px] font-semibold text-primary">
+                    {enabledSourceCount} ჩართული
+                  </span>
+                </div>
+                <div className="space-y-0.5">
                   {dataSources.map((source) => {
                     const isToggleable = source.type in SOURCE_TYPE_MAP;
                     return (
                       <div
                         key={source.type}
                         className={cn(
-                          "flex items-center justify-between rounded-lg px-2 py-1.5 text-sm",
+                          "flex items-center justify-between rounded-xl px-3 py-2 text-sm transition-colors hover:bg-surface-container-low",
                           !source.enabled && "opacity-50",
                         )}
                       >
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2.5">
                           {isToggleable && (
                             <Switch
                               checked={source.enabled}
@@ -1048,7 +1078,7 @@ function AiChatContent() {
                             {source.label}
                           </span>
                         </div>
-                        <span className="font-medium text-on-surface">
+                        <span className="tabular-nums font-medium text-on-surface">
                           {source.count}
                         </span>
                       </div>
@@ -1057,7 +1087,7 @@ function AiChatContent() {
                 </div>
                 <a
                   href="/dashboard/ai-assistant"
-                  className="mt-3 flex items-center gap-1 border-t border-outline-variant/20 pt-2 text-xs font-medium text-primary hover:underline"
+                  className="mt-3 flex items-center justify-center gap-1.5 rounded-xl border border-outline-variant/15 py-2 text-xs font-medium text-primary transition-colors hover:bg-primary/5"
                 >
                   პარამეტრების მართვა
                   <ExternalLink className="h-3 w-3" />
@@ -1075,7 +1105,7 @@ function AiChatContent() {
               setShowHistory(true);
               loadSessions();
             }}
-            className="gap-1.5 border-outline-variant/30 text-on-surface-variant"
+            className="gap-1.5 rounded-xl border-outline-variant/20 bg-surface-container-lowest text-on-surface-variant shadow-none hover:bg-surface-container-low"
           >
             <History className="h-4 w-4" />
             <span className="hidden sm:inline">ისტორია</span>
@@ -1093,43 +1123,46 @@ function AiChatContent() {
       >
         {isEmpty ? (
           /* ─── Empty State ─────────────────────────────── */
-          <div className="flex h-full flex-col items-center justify-center px-4 py-12">
-            <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-2xl bg-on-surface">
-              <Sparkles className="h-9 w-9 text-white" />
+          <div className="flex h-full flex-col items-center justify-center px-4 pb-8 sm:pb-24">
+            <div className="relative mb-8">
+              <div className="flex h-20 w-20 items-center justify-center rounded-3xl bg-gradient-to-br from-primary to-tertiary-container shadow-ambient">
+                <Sparkles className="h-9 w-9 text-white" />
+              </div>
+              <div className="absolute -bottom-1 -right-1 h-5 w-5 rounded-full border-2 border-surface bg-emerald-500" />
             </div>
-            <h2 className="mb-2 text-center text-xl font-semibold text-on-surface sm:text-2xl">
-              გამარჯობა, {tenant.business_name}!{" "}
-              <span className="inline-block">&#x1F44B;</span>
+            <h2 className="mb-3 text-center text-xl font-semibold tracking-display text-on-surface sm:text-2xl">
+              გამარჯობა, {tenant.business_name}!
             </h2>
-            <p className="mb-8 max-w-md text-center text-sm leading-relaxed text-on-surface-variant sm:text-base">
+            <p className="mb-10 max-w-sm text-center text-sm leading-relaxed text-on-surface-variant/80">
               მე ვარ შენი AI ბიზნეს ასისტენტი. შეგიძლია დამისვა ნებისმიერი
               კითხვა, კონტენტის შექმნა და ბიზნეს გადაწყვეტილებების მიღებაში
               დახმარება.
             </p>
 
-            <div className="grid w-full max-w-2xl grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid w-full max-w-2xl grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
               {SUGGESTIONS.map((s, i) => (
                 <button
                   key={i}
                   onClick={() => sendMessage(s.text)}
                   className={cn(
-                    "flex items-start gap-3 rounded-xl border border-outline-variant/20 p-4 text-left transition-all hover:shadow-ambient-sm",
-                    "bg-white/70 backdrop-blur-xl hover:border-primary/20",
+                    "group/chip flex animate-fade-in-up items-start gap-3 rounded-2xl border border-outline-variant/15 bg-surface-container-lowest p-4 text-left transition-all hover:border-primary/20 hover:shadow-ambient-sm active:scale-[0.98]",
+                    i >= 4 && "hidden sm:flex",
                   )}
+                  style={{ animationDelay: `${i * 70}ms` }}
                 >
                   <div
                     className={cn(
-                      "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg",
+                      "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-transform group-hover/chip:scale-105",
                       s.bg,
                     )}
                   >
-                    <s.icon className={cn("h-[18px] w-[18px]", s.color)} />
+                    <s.icon className={cn("h-5 w-5", s.color)} />
                   </div>
                   <div className="min-w-0">
                     <p className="text-sm font-semibold text-on-surface">
                       {s.title}
                     </p>
-                    <p className="mt-0.5 text-xs leading-relaxed text-on-surface-variant">
+                    <p className="mt-0.5 text-xs leading-relaxed text-on-surface-variant/70">
                       {s.text}
                     </p>
                   </div>
@@ -1139,58 +1172,75 @@ function AiChatContent() {
           </div>
         ) : (
           /* ─── Messages ────────────────────────────────── */
-          <div className="mx-auto max-w-3xl space-y-4 px-4 py-6">
-            {messages.map((msg) => (
+          <div className="mx-auto max-w-3xl space-y-5 px-4 py-6 sm:px-6">
+            {messages.map((msg, idx) => (
               <div
                 key={msg.id}
                 className={cn(
-                  "group/msg flex gap-3",
+                  "group/msg flex gap-3 animate-fade-in-up",
                   msg.role === "user" ? "justify-end" : "justify-start",
                 )}
+                style={{
+                  animationDelay:
+                    idx >= messages.length - 2 ? "0ms" : undefined,
+                  animationDuration:
+                    idx >= messages.length - 2 ? "0.25s" : "0s",
+                }}
               >
                 {/* AI Avatar */}
                 {msg.role === "assistant" && (
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-on-surface">
-                    <Sparkles className="h-4 w-4 text-white" />
+                  <div className="relative mt-0.5 shrink-0">
+                    <div
+                      className={cn(
+                        "flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-tertiary-container",
+                        msg.isStreaming && "shadow-ambient-sm",
+                      )}
+                    >
+                      <Sparkles className="h-4 w-4 text-white" />
+                    </div>
+                    {msg.isStreaming && (
+                      <div className="absolute inset-0 animate-pulse-ring rounded-xl bg-primary/20" />
+                    )}
                   </div>
                 )}
 
-                <div className="max-w-[75%] sm:max-w-[65%]">
+                <div
+                  className={cn(
+                    msg.role === "user"
+                      ? "max-w-[80%] sm:max-w-[70%]"
+                      : "max-w-[85%] sm:max-w-[75%]",
+                  )}
+                >
                   {/* Message Bubble */}
                   <div
                     className={cn(
                       "rounded-2xl px-4 py-3",
                       msg.role === "user"
-                        ? "bg-primary text-white"
+                        ? "rounded-br-md bg-primary text-white shadow-ambient-sm"
                         : msg.isError
-                          ? "bg-destructive/5 border border-destructive/20 text-on-surface"
-                          : "bg-surface-container-low text-on-surface",
+                          ? "border border-destructive/20 bg-destructive/5 text-on-surface"
+                          : "rounded-bl-md bg-surface-container-lowest text-on-surface shadow-[0_1px_3px_rgba(11,28,48,0.04)]",
                     )}
                   >
                     {msg.role === "assistant" ? (
-                      <div className={PROSE_CLASSES}>
-                        {msg.content &&
-                          (msg.isStreaming ? (
-                            <ReactMarkdown
-                              remarkPlugins={REMARK_PLUGINS}
-                              components={MARKDOWN_COMPONENTS}
-                            >
-                              {msg.content}
-                            </ReactMarkdown>
-                          ) : (
-                            <MarkdownContent content={msg.content} />
-                          ))}
-                        {msg.isStreaming && !msg.content && (
-                          <div className="flex items-center gap-1 py-1">
-                            <div className="h-2 w-2 animate-bounce rounded-full bg-on-surface-variant/50 [animation-delay:0ms]" />
-                            <div className="h-2 w-2 animate-bounce rounded-full bg-on-surface-variant/50 [animation-delay:150ms]" />
-                            <div className="h-2 w-2 animate-bounce rounded-full bg-on-surface-variant/50 [animation-delay:300ms]" />
+                      msg.isStreaming ? (
+                        msg.content ? (
+                          <StreamingText content={msg.content} />
+                        ) : (
+                          <div className="flex items-center gap-1.5 py-1">
+                            <div className="h-2 w-2 animate-dot-pulse-1 rounded-full bg-primary/60" />
+                            <div className="h-2 w-2 animate-dot-pulse-2 rounded-full bg-primary/60" />
+                            <div className="h-2 w-2 animate-dot-pulse-3 rounded-full bg-primary/60" />
                           </div>
-                        )}
-                        {msg.isStreaming && msg.content && (
-                          <span className="inline-block h-4 w-0.5 animate-pulse bg-primary" />
-                        )}
-                      </div>
+                        )
+                      ) : (
+                        <div
+                          className={cn(PROSE_CLASSES, "animate-fade-in-up")}
+                          style={{ animationDuration: "0.2s" }}
+                        >
+                          <MarkdownContent content={msg.content} />
+                        </div>
+                      )
                     ) : (
                       <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">
                         {msg.content}
@@ -1202,7 +1252,7 @@ function AiChatContent() {
                   {!msg.isStreaming && (
                     <p
                       className={cn(
-                        "mt-1 text-[10px] text-on-surface-variant/0 transition-colors group-hover/msg:text-on-surface-variant/40",
+                        "mt-1 text-[10px] text-on-surface-variant/0 transition-colors duration-200 group-hover/msg:text-on-surface-variant/40",
                         msg.role === "user" ? "text-right" : "text-left",
                       )}
                     >
@@ -1217,11 +1267,11 @@ function AiChatContent() {
                   {msg.role === "assistant" &&
                     !msg.isStreaming &&
                     msg.content && (
-                      <div className="mt-1.5 flex items-center gap-1">
+                      <div className="mt-1.5 flex items-center gap-0.5">
                         {msg.isError ? (
                           <button
                             onClick={() => retryMessage(msg.id)}
-                            className="flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-destructive transition-colors hover:bg-destructive/10"
+                            className="flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-medium text-destructive transition-colors hover:bg-destructive/10"
                           >
                             <RotateCcw className="h-3.5 w-3.5" />
                             თავიდან ცდა
@@ -1230,7 +1280,7 @@ function AiChatContent() {
                           <>
                             <button
                               onClick={() => copyMessage(msg.id, msg.content)}
-                              className="rounded-md p-1.5 text-on-surface-variant/50 transition-colors hover:bg-surface-container-high hover:text-on-surface-variant"
+                              className="rounded-lg p-1.5 text-on-surface-variant/40 transition-colors hover:bg-surface-container-high hover:text-on-surface-variant"
                               title="კოპირება"
                             >
                               {copiedId === msg.id ? (
@@ -1240,13 +1290,13 @@ function AiChatContent() {
                               )}
                             </button>
                             <button
-                              className="rounded-md p-1.5 text-on-surface-variant/50 transition-colors hover:bg-surface-container-high hover:text-on-surface-variant"
+                              className="rounded-lg p-1.5 text-on-surface-variant/40 transition-colors hover:bg-surface-container-high hover:text-on-surface-variant"
                               title="კარგი პასუხი"
                             >
                               <ThumbsUp className="h-3.5 w-3.5" />
                             </button>
                             <button
-                              className="rounded-md p-1.5 text-on-surface-variant/50 transition-colors hover:bg-surface-container-high hover:text-on-surface-variant"
+                              className="rounded-lg p-1.5 text-on-surface-variant/40 transition-colors hover:bg-surface-container-high hover:text-on-surface-variant"
                               title="ცუდი პასუხი"
                             >
                               <ThumbsDown className="h-3.5 w-3.5" />
@@ -1256,7 +1306,7 @@ function AiChatContent() {
 
                         {/* Web Search Badge */}
                         {msg.used_web_search && (
-                          <span className="ml-1 inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-medium text-blue-600 dark:bg-blue-500/10 dark:text-blue-400">
+                          <span className="ml-1 inline-flex items-center gap-1 rounded-lg bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-600 dark:bg-blue-500/10 dark:text-blue-400">
                             <Globe className="h-2.5 w-2.5" />
                             ვებ
                           </span>
@@ -1273,7 +1323,7 @@ function AiChatContent() {
                                 )
                               }
                               className={cn(
-                                "ml-1 flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors",
+                                "ml-1 flex items-center gap-1 rounded-lg px-2.5 py-0.5 text-xs font-medium transition-colors",
                                 showSources === msg.id
                                   ? "bg-primary/10 text-primary"
                                   : "bg-surface-container-high text-on-surface-variant hover:bg-primary/10 hover:text-primary",
@@ -1290,13 +1340,13 @@ function AiChatContent() {
                   {showSources === msg.id &&
                     msg.sources &&
                     msg.sources.filter((s) => s.type !== "web").length > 0 && (
-                      <div className="mt-2 flex flex-wrap gap-1.5">
+                      <div className="mt-2 flex flex-wrap gap-1.5 animate-fade-in-up">
                         {msg.sources
                           .filter((s): s is DataSource => s.type !== "web")
                           .map((source, i) => (
                             <span
                               key={i}
-                              className="inline-flex items-center gap-1 rounded-full bg-primary/5 px-2.5 py-1 text-xs font-medium text-primary"
+                              className="inline-flex items-center gap-1 rounded-lg bg-primary/5 px-2.5 py-1 text-xs font-medium text-primary"
                             >
                               {source.label}
                               <span className="text-primary/60">
@@ -1329,7 +1379,7 @@ function AiChatContent() {
                           {msg.sources.filter((s) => s.type === "web").length})
                         </button>
                         {expandedWebSources === msg.id && (
-                          <div className="mt-1.5 space-y-1 rounded-lg bg-surface-container-low p-2">
+                          <div className="mt-1.5 space-y-1 rounded-xl bg-surface-container-lowest p-2 shadow-[0_1px_3px_rgba(11,28,48,0.04)] animate-fade-in-up">
                             {msg.sources
                               .filter((s): s is WebSource => s.type === "web")
                               .map((source, i) => (
@@ -1338,7 +1388,7 @@ function AiChatContent() {
                                   href={source.url}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="flex items-center gap-2 rounded-md px-2 py-1.5 text-xs text-primary transition-colors hover:bg-primary/5"
+                                  className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs text-primary transition-colors hover:bg-primary/5"
                                 >
                                   <ExternalLink className="h-3 w-3 shrink-0" />
                                   <span className="truncate">
@@ -1360,13 +1410,13 @@ function AiChatContent() {
 
       {/* ─── Scroll to Bottom Pill ─────────────────────────── */}
       {!isNearBottom && messages.length > 0 && (
-        <div className="absolute bottom-28 left-1/2 z-10 -translate-x-1/2">
+        <div className="absolute bottom-36 left-1/2 z-10 -translate-x-1/2">
           <button
             onClick={() => {
               messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
               setIsNearBottom(true);
             }}
-            className="flex items-center gap-1 rounded-full bg-surface-container-lowest px-3 py-1.5 text-xs font-medium text-on-surface-variant shadow-ambient-sm transition-all hover:shadow-ambient"
+            className="flex items-center gap-1.5 rounded-full bg-surface-container-lowest px-4 py-2 text-xs font-medium text-on-surface-variant shadow-ambient transition-all hover:shadow-ambient-lg active:scale-95"
           >
             <ChevronDown className="h-3.5 w-3.5" />
             ახალი შეტყობინება
@@ -1375,25 +1425,21 @@ function AiChatContent() {
       )}
 
       {/* ─── Input Area ───────────────────────────────────── */}
-      <div className="border-t border-outline-variant/20 bg-surface-container-lowest px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 sm:px-6">
+      <div className="bg-gradient-to-t from-surface via-surface to-surface/80 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-2 sm:px-6">
         <div className="mx-auto max-w-3xl">
-          <div className="flex items-end gap-2 rounded-2xl border border-outline-variant/30 bg-surface-container-low px-3 py-2 transition-colors focus-within:border-primary/40 focus-within:ring-1 focus-within:ring-primary/20">
-            <button
-              disabled
-              className="mb-1 shrink-0 rounded-lg p-1.5 text-on-surface-variant/30 cursor-not-allowed"
-              title="ფაილის მიმაგრება (მალე)"
-            >
-              <Paperclip className="h-5 w-5" />
-            </button>
-
+          {/* Web Search Toggle Pill — above input */}
+          <div className="mb-2 flex items-center gap-2">
             <button
               onClick={() => setWebSearchEnabled((prev) => !prev)}
               disabled={webSearchQuota.isDisabled || webSearchQuota.isExhausted}
+              aria-checked={webSearchEnabled}
+              aria-label="ვებ ძიება"
+              role="switch"
               className={cn(
-                "mb-1 shrink-0 rounded-lg p-1.5 transition-colors",
+                "flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium transition-all",
                 webSearchEnabled
-                  ? "bg-primary/10 text-primary"
-                  : "text-on-surface-variant/50 hover:text-on-surface-variant",
+                  ? "border-blue-200 bg-blue-50 text-blue-700 shadow-[0_0_0_1px_rgba(59,130,246,0.1)] dark:border-blue-800 dark:bg-blue-500/10 dark:text-blue-400"
+                  : "border-outline-variant/20 bg-surface-container-lowest text-on-surface-variant/60 hover:border-outline-variant/40 hover:text-on-surface-variant",
                 (webSearchQuota.isDisabled || webSearchQuota.isExhausted) &&
                   "cursor-not-allowed opacity-40",
               )}
@@ -1403,64 +1449,112 @@ function AiChatContent() {
                   : webSearchQuota.isExhausted
                     ? "თვიური ლიმიტი ამოიწურა"
                     : webSearchEnabled
-                      ? "ვებ ძიება ჩართულია"
+                      ? "ვებ ძიება ჩართულია — დააჭირეთ გამოსართავად"
                       : "ვებ ძიების ჩართვა"
               }
             >
-              <Globe className="h-5 w-5" />
+              <Globe
+                className={cn(
+                  "h-3.5 w-3.5",
+                  webSearchEnabled
+                    ? "text-blue-600"
+                    : "text-on-surface-variant/50",
+                )}
+              />
+              <span>
+                {webSearchEnabled ? "ვებ ძიება ჩართულია" : "ვებ ძიება"}
+              </span>
+              {webSearchEnabled && (
+                <span className="flex h-4 w-4 items-center justify-center rounded-full bg-blue-600 text-white">
+                  <Check className="h-2.5 w-2.5" />
+                </span>
+              )}
             </button>
 
-            <Textarea
-              ref={textareaRef}
-              value={input}
-              onChange={handleInput}
-              onKeyDown={handleKeyDown}
-              placeholder="შეგიძლია მეკითხო რა შეკითხვაც გინდა..."
-              rows={1}
-              className="min-h-[36px] max-h-[160px] flex-1 resize-none border-0 bg-transparent p-0 text-sm shadow-none focus-visible:ring-0"
-            />
-
-            {isStreaming ? (
-              <Button
-                size="icon"
-                onClick={stopGeneration}
-                aria-label="გენერაციის შეჩერება"
-                className="mb-0.5 h-8 w-8 shrink-0 rounded-xl bg-destructive hover:bg-destructive/90"
-                title="გენერაციის შეჩერება"
-              >
-                <Square className="h-3.5 w-3.5 fill-current" />
-              </Button>
-            ) : (
-              <Button
-                size="icon"
-                onClick={() => sendMessage(input)}
-                disabled={!input.trim()}
-                aria-label="შეტყობინების გაგზავნა"
-                className="mb-0.5 h-8 w-8 shrink-0 rounded-xl bg-gradient-cta hover:bg-gradient-cta-hover disabled:opacity-40"
-              >
-                <Send className="h-4 w-4" />
-              </Button>
-            )}
-          </div>
-          <div className="mt-2 flex items-center justify-center gap-3">
-            <p className="text-[11px] text-on-surface-variant/50">
-              AI ასისტენტს აქვს წვდომა შენს პროდუქტებზე, შეკვეთებზე და ცოდნის
-              ბაზაზე
-            </p>
-            {!webSearchQuota.isLoading &&
+            {/* Quota indicator — visible when web search is enabled */}
+            {webSearchEnabled &&
+              !webSearchQuota.isLoading &&
               !webSearchQuota.isDisabled &&
               !webSearchQuota.isUnlimited && (
                 <span
                   className={cn(
-                    "text-[11px] font-medium",
+                    "text-[11px] font-medium tabular-nums",
                     webSearchQuota.usage / webSearchQuota.limit >= 0.8
                       ? "text-destructive"
                       : "text-on-surface-variant/50",
                   )}
                 >
-                  {webSearchQuota.usage}/{webSearchQuota.limit} ძებნა
+                  {webSearchQuota.usage}/{webSearchQuota.limit}
                 </span>
               )}
+          </div>
+
+          {/* Main Input Bar */}
+          <div className="rounded-2xl border border-outline-variant/20 bg-surface-container-lowest shadow-ambient-sm transition-all focus-within:border-primary/30 focus-within:shadow-ambient">
+            <div className="flex items-end gap-2 px-4 py-3">
+              <button
+                disabled
+                className="mb-0.5 shrink-0 rounded-lg p-1.5 text-on-surface-variant/25 cursor-not-allowed"
+                title="ფაილის მიმაგრება (მალე)"
+              >
+                <Paperclip className="h-5 w-5" />
+              </button>
+
+              <Textarea
+                ref={textareaRef}
+                value={input}
+                onChange={handleInput}
+                onKeyDown={handleKeyDown}
+                placeholder={
+                  isStreaming
+                    ? "AI ფიქრობს..."
+                    : "დამისვი ნებისმიერი შეკითხვა..."
+                }
+                rows={1}
+                className={cn(
+                  "min-h-[42px] max-h-[160px] flex-1 resize-none border-0 bg-transparent px-1 py-1.5 text-[15px] leading-relaxed shadow-none placeholder:text-on-surface-variant/40 focus-visible:ring-0",
+                  isStreaming && "opacity-60",
+                )}
+              />
+
+              {isStreaming ? (
+                <Button
+                  size="icon"
+                  onClick={stopGeneration}
+                  aria-label="გენერაციის შეჩერება"
+                  className="mb-0.5 h-9 w-9 shrink-0 rounded-xl bg-on-surface hover:bg-on-surface/80"
+                  title="გენერაციის შეჩერება"
+                >
+                  <Square className="h-3.5 w-3.5 fill-current text-white" />
+                </Button>
+              ) : (
+                <Button
+                  size="icon"
+                  onClick={() => sendMessage(input)}
+                  disabled={!input.trim()}
+                  aria-label="შეტყობინების გაგზავნა"
+                  className="mb-0.5 h-9 w-9 shrink-0 rounded-xl bg-gradient-cta shadow-ambient-sm transition-all hover:bg-gradient-cta-hover hover:shadow-ambient disabled:opacity-30 disabled:shadow-none"
+                >
+                  <Send className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+          </div>
+
+          <div className="mt-2 flex items-center justify-center gap-2 text-[11px] text-on-surface-variant/40">
+            <p>
+              AI ასისტენტს აქვს წვდომა შენს პროდუქტებზე, შეკვეთებზე და ცოდნის
+              ბაზაზე
+            </p>
+            <span className="hidden text-on-surface-variant/25 sm:inline">
+              ·
+            </span>
+            <span className="hidden items-center gap-1 sm:inline-flex">
+              <kbd className="rounded border border-outline-variant/15 bg-surface-container-low px-1 py-0.5 font-sans text-[10px] text-on-surface-variant/40">
+                Enter
+              </kbd>
+              <span>გაგზავნა</span>
+            </span>
           </div>
         </div>
       </div>
@@ -1470,41 +1564,38 @@ function AiChatContent() {
         <>
           {/* Backdrop */}
           <div
-            className="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm md:bg-transparent md:backdrop-blur-none"
+            className="fixed inset-0 z-40 bg-on-surface/10 backdrop-blur-sm md:bg-on-surface/5 md:backdrop-blur-[2px]"
             onClick={() => setShowHistory(false)}
           />
 
           {/* Panel */}
-          <div
-            className="fixed bottom-0 right-0 top-0 z-50 flex w-full flex-col border-l border-outline-variant/20 bg-surface-container-lowest shadow-ambient-lg md:w-[380px]"
-            style={{ animation: "slideInRight 0.2s ease-out" }}
-          >
+          <div className="fixed bottom-0 right-0 top-0 z-50 flex w-full animate-slide-in-right flex-col border-l border-outline-variant/15 bg-surface-container-lowest shadow-ambient-lg md:w-[380px]">
             {/* Panel Header */}
-            <div className="flex items-center justify-between border-b border-outline-variant/20 px-4 py-3">
-              <h2 className="text-base font-semibold text-on-surface">
+            <div className="flex items-center justify-between px-4 py-4">
+              <h2 className="text-lg font-semibold tracking-display text-on-surface">
                 ისტორია
               </h2>
               <div className="flex items-center gap-1">
                 <button
                   onClick={startNewChat}
-                  className="rounded-lg p-1.5 text-on-surface-variant transition-colors hover:bg-surface-container-high"
+                  className="rounded-xl p-2 text-on-surface-variant transition-colors hover:bg-surface-container-high"
                   title="ახალი საუბარი"
                 >
-                  <Plus className="h-5 w-5" />
+                  <Plus className="h-4 w-4" />
                 </button>
                 <button
                   onClick={() => setShowHistory(false)}
-                  className="rounded-lg p-1.5 text-on-surface-variant transition-colors hover:bg-surface-container-high"
+                  className="rounded-xl p-2 text-on-surface-variant transition-colors hover:bg-surface-container-high"
                 >
-                  <X className="h-5 w-5" />
+                  <X className="h-4 w-4" />
                 </button>
               </div>
             </div>
 
             {/* Search */}
-            <div className="border-b border-outline-variant/20 px-4 py-2">
-              <div className="flex items-center gap-2 rounded-lg border border-outline-variant/30 bg-surface-container-low px-3 py-1.5">
-                <Search className="h-4 w-4 text-on-surface-variant/50" />
+            <div className="px-4 pb-3">
+              <div className="flex items-center gap-2 rounded-xl border border-outline-variant/15 bg-surface-container-low px-3 py-2">
+                <Search className="h-4 w-4 text-on-surface-variant/40" />
                 <input
                   type="text"
                   value={historySearch}
@@ -1527,51 +1618,51 @@ function AiChatContent() {
             {/* Sessions List */}
             <div className="flex-1 overflow-y-auto">
               {sessionsLoading ? (
-                <div className="space-y-3 p-4">
+                <div className="space-y-2 px-4">
                   {[1, 2, 3].map((i) => (
-                    <Skeleton key={i} className="h-16 w-full rounded-lg" />
+                    <Skeleton key={i} className="h-16 w-full rounded-xl" />
                   ))}
                 </div>
               ) : filteredSessions.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-16 text-center">
-                  <History className="mb-3 h-10 w-10 text-on-surface-variant/30" />
-                  <p className="text-sm text-on-surface-variant">
+                  <History className="mb-3 h-10 w-10 text-on-surface-variant/20" />
+                  <p className="text-sm text-on-surface-variant/60">
                     {historySearch
                       ? "საუბარი ვერ მოიძებნა"
                       : "ჯერ საუბრები არ გაქვთ"}
                   </p>
                 </div>
               ) : (
-                <div className="p-2">
+                <div className="px-3">
                   {Object.entries(groupedSessions).map(
                     ([group, sessionsInGroup]) => (
                       <div key={group} className="mb-4">
-                        <p className="mb-1 px-2 text-xs font-semibold uppercase tracking-wider text-on-surface-variant/50">
+                        <p className="mb-1 px-2 text-[11px] font-semibold uppercase tracking-widest text-on-surface-variant/40">
                           {group}
                         </p>
                         {sessionsInGroup.map((session) => (
                           <div
                             key={session.id}
                             className={cn(
-                              "group flex items-start gap-2 rounded-lg px-3 py-2.5 transition-colors hover:bg-surface-container-low cursor-pointer",
+                              "group flex cursor-pointer items-start gap-2 rounded-xl px-3 py-2.5 transition-colors hover:bg-surface-container-low",
                               activeSessionId === session.id &&
-                                "bg-primary/5 border border-primary/10",
+                                "bg-primary/5 ring-1 ring-primary/10",
                             )}
                             onClick={() => {
                               loadSessionMessages(session.id);
                               setShowHistory(false);
                             }}
                           >
-                            <div className="flex-1 min-w-0">
+                            <div className="min-w-0 flex-1">
                               <p className="truncate text-sm font-medium text-on-surface">
                                 {session.title}
                               </p>
                               {sessionPreviews[session.id] && (
-                                <p className="mt-0.5 truncate text-xs text-on-surface-variant/60">
+                                <p className="mt-0.5 truncate text-xs text-on-surface-variant/50">
                                   {sessionPreviews[session.id]}
                                 </p>
                               )}
-                              <p className="mt-0.5 text-[11px] text-on-surface-variant/40">
+                              <p className="mt-0.5 text-[11px] tabular-nums text-on-surface-variant/35">
                                 {new Date(
                                   session.created_at,
                                 ).toLocaleDateString("ka-GE", {
@@ -1587,7 +1678,7 @@ function AiChatContent() {
                                 e.stopPropagation();
                                 deleteSession(session.id);
                               }}
-                              className="mt-0.5 shrink-0 rounded-md p-1 text-on-surface-variant/30 opacity-0 transition-all hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100"
+                              className="mt-0.5 shrink-0 rounded-lg p-1 text-on-surface-variant/20 opacity-0 transition-all hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100"
                               title="წაშლა"
                             >
                               <Trash2 className="h-3.5 w-3.5" />
