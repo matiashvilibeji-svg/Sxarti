@@ -13,6 +13,7 @@ import {
 } from "@/lib/instagram/messaging";
 import { isGeorgianScript, latinToGeorgian } from "@/lib/utils/georgian";
 import { notifyOwner } from "@/lib/notifications";
+import { executeOrderRules } from "@/lib/orders/rules-engine";
 import { processAttachments } from "@/lib/media/storage";
 import { getTenantLimits } from "@/lib/tenant-limits";
 import { fetchBundlesWithItems } from "@/lib/bundles";
@@ -579,9 +580,10 @@ async function executeAction(
       // Try generating unique order number (max 3 attempts)
       let orderNumber = "";
       let orderInserted = false;
+      let insertedOrderId: string | null = null;
       for (let attempt = 0; attempt < 3; attempt++) {
         orderNumber = generateOrderNumber();
-        const { error: insertError } = await ctx.supabase
+        const { data: insertedOrder, error: insertError } = await ctx.supabase
           .from("orders")
           .insert({
             tenant_id: ctx.tenant.id,
@@ -597,10 +599,13 @@ async function executeAction(
             delivery_zone_id: ctx.selectedDeliveryZone?.id ?? null,
             payment_status: "pending",
             delivery_status: "pending",
-          });
+          })
+          .select("id")
+          .single();
 
-        if (!insertError) {
+        if (!insertError && insertedOrder) {
           orderInserted = true;
+          insertedOrderId = (insertedOrder as { id: string }).id;
           break;
         }
       }
@@ -643,6 +648,15 @@ async function executeAction(
         customer_name: customerInfo.name,
         total,
       }).catch(() => {});
+
+      // Fire order_created automation rules
+      if (insertedOrderId) {
+        executeOrderRules(
+          ctx.tenant.id,
+          insertedOrderId,
+          "order_created",
+        ).catch(() => {});
+      }
       break;
     }
 

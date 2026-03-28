@@ -3,7 +3,8 @@ export type NotificationType =
   | "handoff"
   | "low_stock"
   | "daily_summary"
-  | "problematic";
+  | "problematic"
+  | "automation";
 
 const TEMPLATES: Record<
   NotificationType,
@@ -19,6 +20,7 @@ const TEMPLATES: Record<
     `📊 *დღის შეჯამება*\n\nახალი შეკვეთები: ${data.orders_count}\nშემოსავალი: ${data.revenue} ₾\nსაუბრები: ${data.conversations_count}\n\nწარმატებულ სავაჭრო დღეს გისურვებთ!`,
   problematic: (data) =>
     `🚨 *პრობლემური შემთხვევა!*\n\nმომხმარებელი: ${data.customer_name}\nმიზეზი: ${data.reason}\n\nგთხოვთ, შეამოწმოთ საუბარი პანელში.`,
+  automation: (data) => `⚡ *ავტომატიზაცია*\n\n${data.custom_message}`,
 };
 
 export async function sendWhatsAppNotification(

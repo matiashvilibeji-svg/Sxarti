@@ -105,6 +105,22 @@ export default function OrdersPage() {
     setOrders((prev) =>
       prev.map((o) => (o.id === orderId ? { ...o, [field]: value } : o)),
     );
+
+    // Fire automation rules in the background
+    if (tenant) {
+      fetch("/api/orders/execute-rules", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tenant_id: tenant.id,
+          order_id: orderId,
+          field,
+          value,
+        }),
+      }).catch(() => {
+        // Silent fail — rules are best-effort
+      });
+    }
   };
 
   const toggleSort = (field: SortField) => {

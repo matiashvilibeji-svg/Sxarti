@@ -17,6 +17,7 @@ import {
   Megaphone,
   Menu,
   Gift,
+  Zap,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -43,6 +44,11 @@ const navItems: {
     label: "შეკვეთები",
     icon: ShoppingBag,
     href: "/dashboard/orders",
+  },
+  {
+    label: "ავტომატიზაცია",
+    icon: Zap,
+    href: "/dashboard/orders/rules",
   },
   {
     label: "პროდუქტები",

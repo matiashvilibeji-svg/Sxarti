@@ -14,6 +14,7 @@ const TEMPLATES: Record<
     `📊 <b>დღის შეჯამება</b>\n\nახალი შეკვეთები: ${data.orders_count}\nშემოსავალი: ${data.revenue} ₾\nსაუბრები: ${data.conversations_count}\n\nწარმატებულ სავაჭრო დღეს გისურვებთ!`,
   problematic: (data) =>
     `🚨 <b>პრობლემური შემთხვევა!</b>\n\nმომხმარებელი: ${data.customer_name}\nმიზეზი: ${data.reason}\n\nგთხოვთ, შეამოწმოთ საუბარი პანელში.`,
+  automation: (data) => `⚡ <b>ავტომატიზაცია</b>\n\n${data.custom_message}`,
 };
 
 export async function sendTelegramNotification(

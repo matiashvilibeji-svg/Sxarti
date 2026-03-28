@@ -650,6 +650,9 @@ function NotificationsTab({
   const [telegram, setTelegram] = useState(
     tenant.notification_config?.telegram_chat_id ?? "",
   );
+  const [deliveryTemplate, setDeliveryTemplate] = useState(
+    tenant.delivery_message_template ?? "",
+  );
   const [prefs, setPrefs] = useState<Record<string, boolean>>(() => {
     const defaults: Record<string, boolean> = {
       new_order: true,
@@ -674,6 +677,7 @@ function NotificationsTab({
         telegram_chat_id: telegram || undefined,
         preferences: prefs,
       },
+      delivery_message_template: deliveryTemplate.trim() || null,
     };
     const { error } = await supabase
       .from("tenants")
@@ -759,6 +763,50 @@ function NotificationsTab({
               />
             </label>
           ))}
+        </CardContent>
+      </Card>
+
+      <Card className="card-elevated">
+        <CardHeader>
+          <CardTitle className="text-base">
+            მიწოდების შეტყობინება მომხმარებლისთვის
+          </CardTitle>
+          <CardDescription>
+            როცა შეკვეთის სტატუსი &quot;მიწოდებულია&quot; გახდება, ეს
+            შეტყობინება ავტომატურად გაეგზავნება მომხმარებელს
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="space-y-2">
+            <Label htmlFor="delivery-template">შეტყობინების შაბლონი</Label>
+            <Textarea
+              id="delivery-template"
+              value={deliveryTemplate}
+              onChange={(e) => setDeliveryTemplate(e.target.value)}
+              placeholder="გამარჯობა {customer_name}! თქვენი შეკვეთა #{order_number} მიწოდებულია. მადლობა შეძენისთვის!"
+              rows={3}
+            />
+          </div>
+          <div className="space-y-0.5">
+            <p className="text-xs font-medium text-on-surface-variant">
+              ხელმისაწვდომი ცვლადები:
+            </p>
+            <p className="text-xs text-on-surface-variant">
+              {"{order_number}"} — შეკვეთის ნომერი
+            </p>
+            <p className="text-xs text-on-surface-variant">
+              {"{customer_name}"} — მომხმარებლის სახელი
+            </p>
+            <p className="text-xs text-on-surface-variant">
+              {"{total}"} — ჯამი
+            </p>
+            <p className="text-xs text-on-surface-variant">
+              {"{items_count}"} — ნივთების რაოდენობა
+            </p>
+          </div>
+          <p className="text-xs text-on-surface-variant/60">
+            ცარიელი დატოვების შემთხვევაში გამოიყენება ნაგულისხმევი შაბლონი
+          </p>
         </CardContent>
       </Card>
 

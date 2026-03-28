@@ -1,8 +1,21 @@
 import { createAdminClient } from "@/lib/supabase/admin";
-import type { Product, Tenant } from "@/types/database";
+import type { Order, Product, Tenant } from "@/types/database";
 
 const SCOPES = ["https://www.googleapis.com/auth/spreadsheets"];
 const SHEET_COLUMNS = ["Name", "Price", "Stock", "Description", "Active"];
+const ORDER_SHEET_COLUMNS = [
+  "Order #",
+  "Customer",
+  "Phone",
+  "Address",
+  "Items",
+  "Subtotal",
+  "Delivery",
+  "Total",
+  "Payment",
+  "Delivery Status",
+  "Date",
+];
 
 function base64UrlEncode(data: string): string {
   return Buffer.from(data)
@@ -243,6 +256,114 @@ export async function syncFromSheet(
     }
 
     return { success: true, updated };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
+
+async function ensureSheetTab(
+  accessToken: string,
+  spreadsheetId: string,
+  tabTitle: string,
+) {
+  // Check if tab exists by getting spreadsheet metadata
+  const metaUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}?fields=sheets.properties.title`;
+  const metaRes = await fetch(metaUrl, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!metaRes.ok)
+    throw new Error(`Sheets meta error: ${await metaRes.text()}`);
+  const meta = await metaRes.json();
+  const exists = meta.sheets?.some(
+    (s: { properties: { title: string } }) => s.properties.title === tabTitle,
+  );
+  if (exists) return;
+
+  // Create the tab
+  const batchUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}:batchUpdate`;
+  const batchRes = await fetch(batchUrl, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      requests: [{ addSheet: { properties: { title: tabTitle } } }],
+    }),
+  });
+  if (!batchRes.ok)
+    throw new Error(`Sheets addSheet error: ${await batchRes.text()}`);
+}
+
+async function sheetsAppendApi(
+  accessToken: string,
+  sheetId: string,
+  range: string,
+  values: unknown[][],
+) {
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent(range)}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`;
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ values }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Sheets append error: ${await response.text()}`);
+  }
+  return response.json();
+}
+
+export async function appendOrderToSheet(
+  order: Order,
+  sheetId: string,
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const accessToken = await getAccessToken();
+
+    // Ensure "Orders" tab exists, then check for headers
+    await ensureSheetTab(accessToken, sheetId, "Orders");
+
+    let hasHeaders = false;
+    try {
+      const existing = await sheetsApi(accessToken, sheetId, "Orders!A1:A1");
+      hasHeaders = !!(existing.values && existing.values.length > 0);
+    } catch {
+      // Empty tab
+    }
+    if (!hasHeaders) {
+      await sheetsApi(accessToken, sheetId, "Orders!A1", "PUT", [
+        ORDER_SHEET_COLUMNS,
+      ]);
+    }
+
+    const itemsSummary = order.items
+      .map((i) => `${i.name} x${i.quantity}`)
+      .join(", ");
+
+    const row = [
+      order.order_number,
+      order.customer_name,
+      order.customer_phone,
+      order.customer_address,
+      itemsSummary,
+      order.subtotal,
+      order.delivery_fee,
+      order.total,
+      order.payment_status,
+      order.delivery_status,
+      new Date(order.created_at).toISOString(),
+    ];
+
+    await sheetsAppendApi(accessToken, sheetId, "Orders!A:K", [row]);
+
+    return { success: true };
   } catch (error) {
     return {
       success: false,

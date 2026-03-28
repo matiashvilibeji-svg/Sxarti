@@ -28,6 +28,7 @@ export interface Tenant {
   bot_emoji_usage: number;
   bot_sales_aggressiveness: number;
   bot_greeting_message: string;
+  delivery_message_template: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -319,6 +320,35 @@ export interface BundleItem {
 
 export interface BundleWithItems extends Bundle {
   items: (BundleItem & { product: Product })[];
+}
+
+export type OrderRuleTrigger =
+  | "order_created"
+  | "payment_confirmed"
+  | "order_shipped"
+  | "order_delivered";
+
+export type OrderRuleAction =
+  | "google_sheet_sync"
+  | "message_customer"
+  | "notify_owner";
+
+export interface OrderRuleConfig {
+  sheet_id?: string;
+  template?: string;
+  message?: string;
+}
+
+export interface OrderRule {
+  id: string;
+  tenant_id: string;
+  name: string;
+  trigger_event: OrderRuleTrigger;
+  action_type: OrderRuleAction;
+  action_config: OrderRuleConfig;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface AdRecommendation {
