@@ -13,7 +13,8 @@ export interface GeminiAction {
     | "update_customer_info"
     | "set_delivery_zone"
     | "flag_problematic"
-    | "send_product_images";
+    | "send_product_images"
+    | "add_bundle_to_cart";
   stage?: string;
   product_id?: string;
   quantity?: number;
@@ -25,6 +26,7 @@ export interface GeminiAction {
     city?: string;
   };
   delivery_zone_id?: string;
+  bundle_id?: string;
 }
 
 export interface GeminiResponse {

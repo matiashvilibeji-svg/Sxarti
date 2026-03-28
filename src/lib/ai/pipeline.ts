@@ -15,6 +15,8 @@ import { isGeorgianScript, latinToGeorgian } from "@/lib/utils/georgian";
 import { notifyOwner } from "@/lib/notifications";
 import { processAttachments } from "@/lib/media/storage";
 import { getTenantLimits } from "@/lib/tenant-limits";
+import { fetchBundlesWithItems } from "@/lib/bundles";
+import type { BundleWithItems } from "@/types/database";
 import type {
   Tenant,
   Product,
@@ -165,6 +167,9 @@ export async function processMessage(incoming: IncomingMessage): Promise<void> {
   // 6. Load tenant limits and context (parallel) — includes AI Assistant knowledge config
   const tenantLimits = await getTenantLimits(typedTenant.id);
 
+  // Start bundles fetch in parallel with other context queries
+  const bundlesPromise = fetchBundlesWithItems(typedTenant.id);
+
   const [
     productsRes,
     zonesRes,
@@ -240,6 +245,9 @@ export async function processMessage(incoming: IncomingMessage): Promise<void> {
   ) as FAQ[];
   const messages = (messagesRes.data ?? []) as Message[];
 
+  // Await bundles (started in parallel above)
+  const bundles = await bundlesPromise;
+
   // 7. Build system prompt
   const systemPrompt = buildSystemPrompt({
     tenant: typedTenant,
@@ -251,6 +259,7 @@ export async function processMessage(incoming: IncomingMessage): Promise<void> {
     knowledgeDocuments: (docsRes.data ?? []) as KnowledgeDocument[],
     botInstruction: instructionRes.data as BotInstruction | null,
     behaviorRules: (rulesRes.data ?? []) as BehaviorRule[],
+    bundles,
   });
 
   // 8. Convert history to Gemini Content[]
@@ -309,6 +318,7 @@ export async function processMessage(incoming: IncomingMessage): Promise<void> {
       conversation: typedConv,
       products,
       deliveryZones,
+      bundles,
       updatedCart,
       updatedStage,
       selectedDeliveryZone,
@@ -362,6 +372,7 @@ interface ActionContext {
   conversation: Conversation;
   products: Product[];
   deliveryZones: DeliveryZone[];
+  bundles: BundleWithItems[];
   updatedCart: CartItem[];
   updatedStage: ConversationStage;
   selectedDeliveryZone: DeliveryZone | null;
@@ -468,11 +479,33 @@ async function executeAction(
         orderItems.push(item);
       }
 
-      const subtotal = orderItems.reduce(
+      const rawSubtotal = orderItems.reduce(
         (sum, item) => sum + item.unit_price * item.quantity,
         0,
       );
 
+      // Apply bundle discounts if any cart items came from bundles
+      let bundleDiscount = 0;
+      const bundleIds = Array.from(
+        new Set(
+          ctx.updatedCart.filter((c) => c.bundle_id).map((c) => c.bundle_id!),
+        ),
+      );
+      for (const bid of bundleIds) {
+        const bundle = ctx.bundles.find((b) => b.id === bid);
+        if (!bundle) continue;
+        const bundleItemsTotal = bundle.items.reduce((sum, bi) => {
+          const product = ctx.products.find((p) => p.id === bi.product_id);
+          return sum + (product?.price ?? 0) * bi.quantity;
+        }, 0);
+        if (bundle.discount_type === "fixed") {
+          bundleDiscount += Math.min(bundle.discount_value, bundleItemsTotal);
+        } else {
+          bundleDiscount += bundleItemsTotal * (bundle.discount_value / 100);
+        }
+      }
+
+      const subtotal = Math.max(0, rawSubtotal - bundleDiscount);
       const deliveryFee = ctx.selectedDeliveryZone?.fee ?? 0;
       const total = subtotal + deliveryFee;
 
@@ -691,6 +724,58 @@ async function executeAction(
           ctx.imagesToSend.push(url);
         }
       }
+      break;
+    }
+
+    case "add_bundle_to_cart": {
+      if (!action.bundle_id) break;
+      const bundle = ctx.bundles.find((b) => b.id === action.bundle_id);
+      if (!bundle || bundle.items.length === 0) break;
+
+      // Add each bundle item to cart (same logic as add_to_cart but for all items)
+      const newCart = [...ctx.updatedCart];
+      let allItemsAvailable = true;
+
+      for (const bundleItem of bundle.items) {
+        const product = ctx.products.find(
+          (p) => p.id === bundleItem.product_id,
+        );
+        if (!product || product.stock_quantity <= 0) {
+          allItemsAvailable = false;
+          break;
+        }
+        const existingCartItem = newCart.find(
+          (c) => c.product_id === bundleItem.product_id,
+        );
+        const totalQty =
+          (existingCartItem?.quantity ?? 0) + bundleItem.quantity;
+        if (totalQty > product.stock_quantity) {
+          allItemsAvailable = false;
+          break;
+        }
+      }
+
+      if (!allItemsAvailable) break;
+
+      for (const bundleItem of bundle.items) {
+        const existingIndex = newCart.findIndex(
+          (c) =>
+            c.product_id === bundleItem.product_id && c.bundle_id === bundle.id,
+        );
+        if (existingIndex >= 0) {
+          newCart[existingIndex] = {
+            ...newCart[existingIndex],
+            quantity: newCart[existingIndex].quantity + bundleItem.quantity,
+          };
+        } else {
+          newCart.push({
+            product_id: bundleItem.product_id,
+            quantity: bundleItem.quantity,
+            bundle_id: bundle.id,
+          });
+        }
+      }
+      ctx.setCart(newCart);
       break;
     }
   }

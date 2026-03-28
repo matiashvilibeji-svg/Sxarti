@@ -16,6 +16,7 @@ import {
   Loader2,
   Megaphone,
   Menu,
+  Gift,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -47,6 +48,11 @@ const navItems: {
     label: "პროდუქტები",
     icon: Package,
     href: "/dashboard/products",
+  },
+  {
+    label: "ბანდლები",
+    icon: Gift,
+    href: "/dashboard/bundles",
   },
   {
     label: "მიწოდება",

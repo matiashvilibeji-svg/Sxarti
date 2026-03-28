@@ -86,6 +86,7 @@ export interface CartItem {
   product_id: string;
   quantity: number;
   variant?: string;
+  bundle_id?: string;
 }
 
 export interface CustomerInfo {
@@ -294,6 +295,30 @@ export interface AdMetrics {
   gender_breakdown: Record<string, number> | null;
   geo_breakdown: Record<string, number> | null;
   created_at: string;
+}
+
+export interface Bundle {
+  id: string;
+  tenant_id: string;
+  name: string;
+  description: string | null;
+  discount_type: "fixed" | "percentage";
+  discount_value: number;
+  is_active: boolean;
+  bot_auto_suggest: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BundleItem {
+  id: string;
+  bundle_id: string;
+  product_id: string;
+  quantity: number;
+}
+
+export interface BundleWithItems extends Bundle {
+  items: (BundleItem & { product: Product })[];
 }
 
 export interface AdRecommendation {
