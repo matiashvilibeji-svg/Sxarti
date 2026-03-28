@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getTenantLimits } from "@/lib/tenant-limits";
 import { buildOwnerChatPrompt } from "@/lib/ai/prompts/owner-chat";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import type { Content } from "@google/generative-ai";
@@ -52,14 +53,6 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Limit message length to prevent abuse (10,000 chars ≈ 2,500 tokens)
-  if (message.length > 10000) {
-    return new Response(
-      JSON.stringify({ error: "Message too long (max 10,000 characters)" }),
-      { status: 400 },
-    );
-  }
-
   const admin = createAdminClient();
 
   // Verify ownership
@@ -77,6 +70,19 @@ export async function POST(request: NextRequest) {
   }
 
   const typedTenant = tenant as Tenant;
+
+  // Load tenant-specific limits
+  const tenantLimits = await getTenantLimits(tenant_id);
+
+  // Limit message length to prevent abuse (dynamic per-tenant limit)
+  if (message.length > tenantLimits.max_owner_chat_chars) {
+    return new Response(
+      JSON.stringify({
+        error: `Message too long (max ${tenantLimits.max_owner_chat_chars.toLocaleString()} characters)`,
+      }),
+      { status: 400 },
+    );
+  }
 
   // Session management
   let currentSessionId = session_id;
@@ -129,7 +135,7 @@ export async function POST(request: NextRequest) {
     .select("role, content")
     .eq("session_id", currentSessionId)
     .order("created_at", { ascending: true })
-    .limit(20);
+    .limit(tenantLimits.max_owner_chat_messages);
 
   // Save user message
   await admin.from("ai_chat_messages").insert({
@@ -452,7 +458,7 @@ export async function POST(request: NextRequest) {
 
   const genAI = new GoogleGenerativeAI(apiKey);
   const modelConfig: any = {
-    model: "gemini-2.5-flash",
+    model: "gemini-3.1-flash-lite-preview",
     systemInstruction: systemPrompt,
   };
 

@@ -7,9 +7,17 @@ import { TeamSettings } from "@/components/admin/settings/team-settings";
 import { NotificationSettings } from "@/components/admin/settings/notification-settings";
 import { SecuritySettings } from "@/components/admin/settings/security-settings";
 import { WebSearchSettings } from "@/components/admin/settings/web-search-settings";
+import { BusinessLimitsSettings } from "@/components/admin/settings/business-limits-settings";
 import { createBrowserClient } from "@supabase/ssr";
 import { AdminUser } from "@/types/admin";
-import { Settings, Users, Bell, Shield, Globe } from "lucide-react";
+import {
+  Settings,
+  Users,
+  Bell,
+  Shield,
+  Globe,
+  SlidersHorizontal,
+} from "lucide-react";
 
 export default function SettingsPage() {
   const [admins, setAdmins] = useState<AdminUser[]>([]);
@@ -42,7 +50,7 @@ export default function SettingsPage() {
 
       <Tabs defaultValue="general" className="space-y-6">
         <div className="-mx-4 overflow-x-auto px-4 md:mx-0 md:px-0">
-          <TabsList className="inline-flex w-auto min-w-full md:grid md:w-full md:grid-cols-5">
+          <TabsList className="inline-flex w-auto min-w-full md:grid md:w-full md:grid-cols-6">
             <TabsTrigger value="general" className="flex items-center gap-2">
               <Settings className="h-4 w-4 hidden sm:block" />
               General
@@ -66,6 +74,13 @@ export default function SettingsPage() {
               <Globe className="h-4 w-4 hidden sm:block" />
               Web Search
             </TabsTrigger>
+            <TabsTrigger
+              value="business-limits"
+              className="flex items-center gap-2"
+            >
+              <SlidersHorizontal className="h-4 w-4 hidden sm:block" />
+              Limits
+            </TabsTrigger>
           </TabsList>
         </div>
 
@@ -87,6 +102,10 @@ export default function SettingsPage() {
 
         <TabsContent value="web-search">
           <WebSearchSettings />
+        </TabsContent>
+
+        <TabsContent value="business-limits">
+          <BusinessLimitsSettings />
         </TabsContent>
       </Tabs>
     </div>

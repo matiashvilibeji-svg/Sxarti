@@ -14,6 +14,7 @@ import {
 import { isGeorgianScript, latinToGeorgian } from "@/lib/utils/georgian";
 import { notifyOwner } from "@/lib/notifications";
 import { processAttachments } from "@/lib/media/storage";
+import { getTenantLimits } from "@/lib/tenant-limits";
 import type {
   Tenant,
   Product,
@@ -161,7 +162,9 @@ export async function processMessage(incoming: IncomingMessage): Promise<void> {
     attachments: storedAttachments,
   });
 
-  // 6. Load context (parallel) — includes AI Assistant knowledge config
+  // 6. Load tenant limits and context (parallel) — includes AI Assistant knowledge config
+  const tenantLimits = await getTenantLimits(typedTenant.id);
+
   const [
     productsRes,
     zonesRes,
@@ -189,7 +192,7 @@ export async function processMessage(incoming: IncomingMessage): Promise<void> {
       .select("*")
       .eq("conversation_id", typedConv.id)
       .order("created_at", { ascending: true })
-      .limit(20),
+      .limit(tenantLimits.max_bot_messages),
     supabase
       .from("knowledge_sources")
       .select("*")

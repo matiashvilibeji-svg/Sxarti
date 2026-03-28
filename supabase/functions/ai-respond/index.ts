@@ -30,20 +30,28 @@ serve(async (req) => {
       );
     }
 
-    // Load conversation context
+    // Load tenant config and limits in parallel
+    const [tenantRes, limitsRes] = await Promise.all([
+      supabase.from("tenants").select("*").eq("id", tenant_id).single(),
+      supabase
+        .from("tenant_limits")
+        .select(
+          "max_bot_messages, max_owner_chat_messages, max_owner_chat_chars, max_conversations_monthly",
+        )
+        .eq("tenant_id", tenant_id)
+        .single(),
+    ]);
+
+    const tenant = tenantRes.data;
+    const maxBotMessages = limitsRes.data?.max_bot_messages ?? 20;
+
+    // Load conversation context with dynamic limit
     const { data: messages } = await supabase
       .from("messages")
       .select("sender, content")
       .eq("conversation_id", conversation_id)
       .order("created_at", { ascending: true })
-      .limit(20);
-
-    // Load tenant config for bot persona
-    const { data: tenant } = await supabase
-      .from("tenants")
-      .select("*")
-      .eq("id", tenant_id)
-      .single();
+      .limit(maxBotMessages);
 
     // Load all business context in parallel
     const [
@@ -272,7 +280,7 @@ ${filteredFaqs.length > 0 ? `ხშირი კითხვები (FAQ):\n${
     }
 
     const geminiResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite-preview:generateContent?key=${geminiKey}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
