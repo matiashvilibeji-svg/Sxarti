@@ -327,6 +327,7 @@ function AiChatContent() {
         conversations,
         zones,
         faqs,
+        adCampaigns,
         entries,
         docs,
         kSources,
@@ -351,6 +352,10 @@ function AiChatContent() {
           .eq("is_active", true),
         supabase
           .from("faqs")
+          .select("id", { count: "exact", head: true })
+          .eq("tenant_id", tenant!.id),
+        supabase
+          .from("ad_campaigns")
           .select("id", { count: "exact", head: true })
           .eq("tenant_id", tenant!.id),
         supabase
@@ -382,7 +387,7 @@ function AiChatContent() {
       const isOn = (type: string) =>
         ksData.length === 0 || (sourceToggles.get(type) ?? true);
 
-      setDataSources([
+      const sources: typeof dataSources = [
         {
           type: "products",
           label: "პროდუქტები",
@@ -414,18 +419,34 @@ function AiChatContent() {
           enabled: isOn("faqs"),
         },
         {
-          type: "knowledge",
-          label: "ცოდნის ბაზა",
-          count: entries.count || 0,
-          enabled: true,
+          type: "ads",
+          label: "რეკლამები",
+          count: adCampaigns.count || 0,
+          enabled: isOn("ads"),
         },
-        {
+      ];
+
+      // Show knowledge entries and documents only when they have data
+      const entriesCount = entries.count || 0;
+      const docsCount = docs.count || 0;
+      if (entriesCount > 0) {
+        sources.push({
+          type: "knowledge",
+          label: "სპეციალური ცოდნა",
+          count: entriesCount,
+          enabled: true,
+        });
+      }
+      if (docsCount > 0) {
+        sources.push({
           type: "documents",
           label: "დოკუმენტები",
-          count: docs.count || 0,
+          count: docsCount,
           enabled: true,
-        },
-      ]);
+        });
+      }
+
+      setDataSources(sources);
     }
 
     loadSourceCounts();
@@ -439,6 +460,7 @@ function AiChatContent() {
     conversations: "conversations",
     zones: "delivery_zones",
     faqs: "faqs",
+    ads: "ads",
   };
 
   async function toggleSourceFromDropdown(
