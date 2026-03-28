@@ -128,13 +128,35 @@ serve(async (req) => {
         if (!conversation) continue;
 
         // Store incoming message
-        await supabase.from("messages").insert({
-          conversation_id: conversation.id,
-          tenant_id: tenant.id,
-          sender: "customer",
-          content: messageText,
-          platform_message_id: event.message?.mid || null,
-        });
+        const { data: storedMsg } = await supabase
+          .from("messages")
+          .insert({
+            conversation_id: conversation.id,
+            tenant_id: tenant.id,
+            sender: "customer",
+            content: messageText,
+            platform_message_id: event.message?.mid || null,
+          })
+          .select("id, created_at")
+          .single();
+
+        if (!storedMsg) continue;
+
+        // Debounce: wait 3 seconds then check if newer messages arrived
+        await new Promise((resolve) => setTimeout(resolve, 3000));
+
+        const { data: newerMessages } = await supabase
+          .from("messages")
+          .select("id")
+          .eq("conversation_id", conversation.id)
+          .eq("sender", "customer")
+          .gt("created_at", storedMsg.created_at)
+          .limit(1);
+
+        // If a newer customer message exists, skip AI call — that message's handler will process
+        if (newerMessages && newerMessages.length > 0) {
+          continue;
+        }
 
         // Call ai-respond function
         const aiResponse = await fetch(
