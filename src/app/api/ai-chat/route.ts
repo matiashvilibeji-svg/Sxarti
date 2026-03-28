@@ -210,32 +210,26 @@ export async function POST(request: NextRequest) {
       .select("*")
       .eq("tenant_id", tenant_id)
       .eq("is_enabled", true),
-    // Ads data (last 30 days metrics for Premium tenants)
-    typedTenant.subscription_plan === "premium"
-      ? admin
-          .from("ad_metrics")
-          .select(
-            "spend, impressions, clicks, conversions, ctr, cpc, roas, campaign_id",
-          )
-          .eq("tenant_id", tenant_id)
-          .is("adset_id", null)
-          .is("ad_id", null)
-          .gte(
-            "date",
-            new Date(Date.now() - 30 * 86400000).toISOString().split("T")[0],
-          )
-      : Promise.resolve({ data: null }),
-    typedTenant.subscription_plan === "premium"
-      ? admin.from("ad_campaigns").select("id, name").eq("tenant_id", tenant_id)
-      : Promise.resolve({ data: null }),
-    typedTenant.subscription_plan === "premium"
-      ? admin
-          .from("ad_recommendations")
-          .select("priority, category, description")
-          .eq("tenant_id", tenant_id)
-          .order("generated_at", { ascending: false })
-          .limit(5)
-      : Promise.resolve({ data: null }),
+    // Ads data (last 30 days metrics)
+    admin
+      .from("ad_metrics")
+      .select(
+        "spend, impressions, clicks, conversions, ctr, cpc, roas, campaign_id",
+      )
+      .eq("tenant_id", tenant_id)
+      .is("adset_id", null)
+      .is("ad_id", null)
+      .gte(
+        "date",
+        new Date(Date.now() - 30 * 86400000).toISOString().split("T")[0],
+      ),
+    admin.from("ad_campaigns").select("id, name").eq("tenant_id", tenant_id),
+    admin
+      .from("ad_recommendations")
+      .select("priority, category, description")
+      .eq("tenant_id", tenant_id)
+      .order("generated_at", { ascending: false })
+      .limit(5),
     admin.from("knowledge_sources").select("*").eq("tenant_id", tenant_id),
   ]);
 
@@ -310,8 +304,8 @@ export async function POST(request: NextRequest) {
 
   // ─── Build ads summary for prompt ──────────────────────────
   let adsSummary = null;
-  if (includeAds && adMetricsRes.data?.length && adCampaignsRes.data?.length) {
-    const metricsData = adMetricsRes.data as Array<{
+  if (includeAds && adCampaignsRes.data?.length) {
+    const metricsData = (adMetricsRes.data || []) as Array<{
       spend: number;
       impressions: number;
       clicks: number;
@@ -381,7 +375,7 @@ export async function POST(request: NextRequest) {
     sourcesUsed.push({
       type: "ads",
       label: "რეკლამები",
-      count: metricsData.length,
+      count: adCampaignsRes.data.length,
     });
   }
 
